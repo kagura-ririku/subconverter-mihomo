@@ -31,6 +31,8 @@ type Subscription struct {
 	UUID              string           `json:"uuid"`
 	Name              string           `json:"name"`
 	RemoteConfig      string           `json:"remote_config"`
+	EnableNodeRename  *bool            `json:"enable_node_rename,omitempty"`
+	NodeRenameEnabled bool             `json:"-"`
 	SortNodesByRegion bool             `json:"sort_nodes_by_region"`
 	Upstreams         []Upstream       `json:"upstreams"`
 	IncludeRegex      RegexList        `json:"include_regex"`
@@ -209,6 +211,10 @@ func prepareSubscriptions(subscriptions []Subscription) ([]Subscription, error) 
 			subscription.Name = fmt.Sprintf("subscription-%d", subIdx+1)
 		}
 		subscription.RemoteConfig = strings.TrimSpace(subscription.RemoteConfig)
+		subscription.NodeRenameEnabled = true
+		if subscription.EnableNodeRename != nil {
+			subscription.NodeRenameEnabled = *subscription.EnableNodeRename
+		}
 
 		includePatterns, err := compilePatterns([]string(subscription.IncludeRegex))
 		if err != nil {

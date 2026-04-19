@@ -145,7 +145,11 @@ func Apply(nodes []model.Node, cfg *config.Config, subscription *config.Subscrip
 		deduped = append(deduped, node)
 	}
 
-	assignFinalNames(deduped, cfg)
+	if subscription.NodeRenameEnabled {
+		assignFinalNames(deduped, cfg)
+	} else {
+		preserveWorkingNames(deduped)
+	}
 	if subscription.SortNodesByRegion {
 		sortNodesByRegion(deduped, cfg)
 	}
@@ -309,6 +313,20 @@ func assignGroupFinalNames(nodes []model.Node, cfg *config.Config, group *rename
 			nodes[idx].FinalName = prefix + group.Country + " " + pad
 		}
 		nodes[idx].Proxy["name"] = nodes[idx].FinalName
+	}
+}
+
+func preserveWorkingNames(nodes []model.Node) {
+	for idx := range nodes {
+		finalName := strings.TrimSpace(nodes[idx].WorkingName)
+		if finalName == "" {
+			finalName = strings.TrimSpace(nodes[idx].OriginalName)
+		}
+		if finalName == "" {
+			finalName = "Unnamed"
+		}
+		nodes[idx].FinalName = finalName
+		nodes[idx].Proxy["name"] = finalName
 	}
 }
 
