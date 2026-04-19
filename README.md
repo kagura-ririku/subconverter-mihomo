@@ -42,20 +42,54 @@ config/subscriptions.json     订阅配置文件
 docker-compose.yml            部署配置
 ```
 
+## 部署
+
+有两种常见方式：
+
+1. 直接 `git clone` 整个仓库
+2. 只下载部署需要的最小文件
+
+如果你不打算 clone 整个仓库，最少需要这两个文件：
+
+- [docker-compose.yml](docker-compose.yml)
+- [config/subscriptions.json](config/subscriptions.json)
+
+目录结构需要是这样：
+
+```text
+your-workdir/
+├── docker-compose.yml
+└── config/
+    └── subscriptions.json
+```
+
+例如：
+
+```bash
+mkdir -p subconverter-mihomo/config
+cd subconverter-mihomo
+```
+
+然后把 `docker-compose.yml` 放在当前目录，把 `subscriptions.json` 放到 `config/` 目录下。
+
 ## 快速开始
 
-1. 修改 [config/subscriptions.json](config/subscriptions.json)，填入你自己的 UUID、上游订阅和远程配置 URL。
+1. 准备好 [docker-compose.yml](docker-compose.yml) 和 [config/subscriptions.json](config/subscriptions.json)。
 
-2. 如果需要改对外端口，修改 [docker-compose.yml](docker-compose.yml) 里的 `127.0.0.1:7000:8080`，只改中间的 `7000` 即可。
+2. 修改 [config/subscriptions.json](config/subscriptions.json)，填入你自己的 UUID、上游订阅和远程配置 URL。
 
-3. 拉取并启动：
+3. `uuid` 可以自己生成，也可以直接上网搜索 `uuid generator`，生成一个随机 UUID v4 后填进去。
+
+4. 如果需要改对外端口，修改 [docker-compose.yml](docker-compose.yml) 里的 `127.0.0.1:7000:8080`，只改中间的 `7000` 即可。
+
+5. 在 `docker-compose.yml` 所在目录启动：
 
 ```bash
 docker compose pull
 docker compose up -d
 ```
 
-4. 访问订阅：
+6. 访问订阅：
 
 ```text
 https://your-domain/<uuid>
