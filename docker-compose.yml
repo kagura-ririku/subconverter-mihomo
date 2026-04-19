@@ -1,0 +1,33 @@
+services:
+  subconverter:
+    container_name: subconverter
+    image: ghcr.io/kagura-ririku/subconverter-mihomo:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:7000:8080"
+    volumes:
+      - subconverter-runtime:/data/mihomo
+      - ./config:/app/config:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  mihomo:
+    container_name: subconverter-mihomo
+    image: metacubex/mihomo:latest
+    restart: unless-stopped
+    command:
+      - /bin/sh
+      - -lc
+      - |
+        while [ ! -f /root/.config/mihomo/config.yaml ]; do sleep 0.2; done
+        exec /mihomo -f /root/.config/mihomo/config.yaml
+    expose:
+      - "9093"
+    volumes:
+      - subconverter-runtime:/root/.config/mihomo
+
+volumes:
+  subconverter-runtime:
