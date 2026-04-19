@@ -110,6 +110,10 @@ https://your-domain/<uuid>/clash
 - `include_regex` / `exclude_regex`：订阅级筛选规则
 - `upstreams`：上游订阅列表
 
+`remote_config` 推荐使用这个规则仓库：
+
+- https://github.com/Aethersailor/Custom_OpenClash_Rules/tree/main
+
 上游字段说明：
 
 - `url`：上游订阅地址

@@ -25,6 +25,12 @@ func defaultRegionFlags() map[string]string {
 		"KOR": "🇰🇷",
 		"SGP": "🇸🇬",
 		"USA": "🇺🇸",
+		"DEU": "🇩🇪",
+		"TUR": "🇹🇷",
+		"ARG": "🇦🇷",
+		"MYS": "🇲🇾",
+		"NGA": "🇳🇬",
+		"PAK": "🇵🇰",
 	}
 }
 
@@ -37,6 +43,12 @@ func defaultRegionKeywords() map[string][]string {
 		"KOR": {"🇰🇷", "韩国", "韩", "KR", "KOR", "Korea", "South Korea"},
 		"SGP": {"🇸🇬", "新加坡", "狮城", "SG", "SGP", "Singapore"},
 		"USA": {"🇺🇸", "美国", "美", "US", "USA", "America", "United States"},
+		"DEU": {"🇩🇪", "德国", "德", "DE", "DEU", "Germany", "Frankfurt", "Berlin"},
+		"TUR": {"🇹🇷", "土耳其", "TR", "TUR", "Turkey", "Turkiye", "Türkiye", "Istanbul"},
+		"ARG": {"🇦🇷", "阿根廷", "AR", "ARG", "Argentina", "Buenos Aires"},
+		"MYS": {"🇲🇾", "马来西亚", "馬來西亞", "MY", "MYS", "Malaysia", "Kuala Lumpur"},
+		"NGA": {"🇳🇬", "尼日利亚", "尼日利亞", "NG", "NGA", "Nigeria", "Lagos"},
+		"PAK": {"🇵🇰", "巴基斯坦", "PK", "PAK", "Pakistan", "Islamabad", "Karachi"},
 	}
 }
 
