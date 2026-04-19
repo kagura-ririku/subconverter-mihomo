@@ -88,7 +88,16 @@ func (a *Application) handleSubscription(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	uuid := strings.Trim(path.Clean(r.URL.Path), "/")
+	uuid, format, ok := parseSubscriptionPath(r.URL.Path)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	if format != "clash" {
+		http.Error(w, "unsupported subscription format", http.StatusBadRequest)
+		return
+	}
+
 	subscription := a.cfg.FindSubscription(uuid)
 	if subscription == nil {
 		http.Error(w, "forbidden", http.StatusForbidden)
@@ -204,6 +213,23 @@ func (a *Application) updateProvidersConcurrently(ctx context.Context, providerN
 func contentDisposition(filename string) string {
 	escaped := url.PathEscape(filename)
 	return "attachment; filename*=UTF-8''" + escaped
+}
+
+func parseSubscriptionPath(requestPath string) (uuid string, format string, ok bool) {
+	cleaned := strings.Trim(path.Clean(requestPath), "/")
+	if cleaned == "" || cleaned == "." {
+		return "", "", false
+	}
+
+	parts := strings.Split(cleaned, "/")
+	switch len(parts) {
+	case 1:
+		return parts[0], "clash", true
+	case 2:
+		return parts[0], strings.ToLower(strings.TrimSpace(parts[1])), true
+	default:
+		return "", "", false
+	}
 }
 
 func init() {

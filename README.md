@@ -20,7 +20,7 @@ ghcr.io/kagura-ririku/subconverter-mihomo:latest
 - 自动重命名节点并添加地区旗帜
 - 可按固定顺序排序节点：`港澳台日韩新美`
 - 保留上游返回的 `subscription-userinfo`
-- 请求路径固定为 `https://your-domain/<uuid>`
+- 支持按路径区分订阅格式，例如 `https://your-domain/<uuid>/clash`
 - 不支持任何查询参数
 
 ## 架构
@@ -92,8 +92,10 @@ docker compose up -d
 6. 访问订阅：
 
 ```text
-https://your-domain/<uuid>
+https://your-domain/<uuid>/clash
 ```
+
+当前默认支持 `clash`，所以旧的 `https://your-domain/<uuid>` 也仍然兼容。
 
 ## 配置文件
 
@@ -141,11 +143,13 @@ https://your-domain/<uuid>
 
 - `GET /healthz`：存活检查
 - `GET /readyz`：`mihomo` 就绪检查
-- `GET /<uuid>`：获取订阅
+- `GET /<uuid>/clash`：获取 Clash 订阅
+- `GET /<uuid>`：兼容旧路径，当前等同于 `GET /<uuid>/clash`
 
 说明：
 
 - 请求里带任何查询参数都会返回 `400`
+- 当前只有 `clash` 格式可用，其他格式路径会返回 `400`
 - 如果配置了 `SUBCONVERTER_ALLOWED_HOSTS`，不在白名单内的 Host 会返回 `403`
 - 找不到对应 UUID 也会返回 `403`
 
