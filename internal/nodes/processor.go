@@ -357,17 +357,18 @@ func sortNodesByRegion(nodes []model.Node, cfg *config.Config) {
 }
 
 func extractRegionInfo(name string, cfg *config.Config) regionInfo {
+	for _, city := range cfg.CityKeywords {
+		if matchesKeywordList(name, city.Keywords) {
+			return regionInfo{Country: city.Country, City: city.City}
+		}
+	}
+
 	for country, keywords := range cfg.RegionKeywords {
-		if !matchesKeywordList(name, keywords) {
+		if !matchesLeadingKeywordList(name, keywords) {
 			continue
 		}
 		if _, ok := cfg.CitylessCountries[country]; ok {
 			return regionInfo{Country: country}
-		}
-		for city, keywords := range cfg.CityKeywords {
-			if matchesKeywordList(name, keywords) {
-				return regionInfo{Country: country, City: city}
-			}
 		}
 		return regionInfo{Country: country}
 	}
@@ -383,16 +384,77 @@ func matchesKeywordList(name string, keywords []string) bool {
 	return false
 }
 
+func matchesLeadingKeywordList(name string, keywords []string) bool {
+	for _, keyword := range keywords {
+		if matchLeadingKeyword(name, keyword) {
+			return true
+		}
+	}
+	return false
+}
+
 func matchKeyword(name, keyword string) bool {
-	if hasCJK(keyword) || strings.Contains(keyword, "🇭") || strings.Contains(keyword, "🇺") {
+	if hasCJK(keyword) || hasRegionalIndicator(keyword) {
 		return strings.Contains(name, keyword)
 	}
-	return strings.Contains(strings.ToLower(name), strings.ToLower(keyword))
+	return containsToken(strings.ToLower(name), strings.ToLower(keyword))
+}
+
+func matchLeadingKeyword(name, keyword string) bool {
+	name = strings.TrimSpace(name)
+	keyword = strings.TrimSpace(keyword)
+	if name == "" || keyword == "" {
+		return false
+	}
+
+	if hasCJK(keyword) || hasRegionalIndicator(keyword) {
+		return strings.HasPrefix(name, keyword)
+	}
+
+	name = strings.ToLower(name)
+	keyword = strings.ToLower(keyword)
+	if !strings.HasPrefix(name, keyword) {
+		return false
+	}
+	return isKeywordBoundary(name, len(keyword))
+}
+
+func containsToken(name, keyword string) bool {
+	start := 0
+	for {
+		idx := strings.Index(name[start:], keyword)
+		if idx < 0 {
+			return false
+		}
+		matchStart := start + idx
+		matchEnd := matchStart + len(keyword)
+		if isKeywordBoundary(name, matchStart-1) && isKeywordBoundary(name, matchEnd) {
+			return true
+		}
+		start = matchStart + 1
+	}
+}
+
+func isKeywordBoundary(value string, idx int) bool {
+	if idx < 0 || idx >= len(value) {
+		return true
+	}
+	ch := value[idx]
+	return !((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9'))
 }
 
 func hasCJK(s string) bool {
 	for _, r := range s {
 		if r >= 0x4e00 && r <= 0x9fff {
+			return true
+		}
+	}
+	return false
+}
+
+func hasRegionalIndicator(s string) bool {
+	for _, r := range s {
+		if r >= 0x1f1e6 && r <= 0x1f1ff {
 			return true
 		}
 	}

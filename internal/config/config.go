@@ -27,6 +27,12 @@ type Upstream struct {
 	ExcludePatterns []*regexp.Regexp  `json:"-"`
 }
 
+type CityKeyword struct {
+	Country  string
+	City     string
+	Keywords []string
+}
+
 type Subscription struct {
 	UUID              string           `json:"uuid"`
 	Name              string           `json:"name"`
@@ -54,7 +60,7 @@ type Config struct {
 	CitylessCountries        map[string]struct{}
 	RegionFlags              map[string]string
 	RegionKeywords           map[string][]string
-	CityKeywords             map[string][]string
+	CityKeywords             []CityKeyword
 }
 
 const defaultSubscriptionsFile = "./config/subscriptions.json"
@@ -154,7 +160,7 @@ func Load() (*Config, error) {
 		cfg.RegionKeywords = regionKeywords
 	}
 	if cityKeywords := loadMapListEnv("CITY_KEYWORDS_JSON"); len(cityKeywords) > 0 {
-		cfg.CityKeywords = cityKeywords
+		cfg.CityKeywords = cityKeywordsFromMap("", cityKeywords)
 	}
 
 	return cfg, nil
@@ -366,6 +372,18 @@ func loadMapListEnv(base string) map[string][]string {
 		normalized[strings.ToUpper(strings.TrimSpace(key))] = normalizeList(values)
 	}
 	return normalized
+}
+
+func cityKeywordsFromMap(country string, values map[string][]string) []CityKeyword {
+	result := make([]CityKeyword, 0, len(values))
+	for city, keywords := range values {
+		result = append(result, CityKeyword{
+			Country:  strings.ToUpper(strings.TrimSpace(country)),
+			City:     strings.TrimSpace(city),
+			Keywords: normalizeList(keywords),
+		})
+	}
+	return result
 }
 
 func mustDurationSeconds(base string, fallback int) time.Duration {
