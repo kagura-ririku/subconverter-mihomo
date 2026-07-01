@@ -416,7 +416,7 @@ func matchLeadingKeyword(name, keyword string) bool {
 	if !strings.HasPrefix(name, keyword) {
 		return false
 	}
-	return isKeywordBoundary(name, len(keyword))
+	return isLeadingKeywordBoundary(name, len(keyword))
 }
 
 func containsToken(name, keyword string) bool {
@@ -441,6 +441,17 @@ func isKeywordBoundary(value string, idx int) bool {
 	}
 	ch := value[idx]
 	return !((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9'))
+}
+
+func isLeadingKeywordBoundary(value string, idx int) bool {
+	if idx < 0 || idx >= len(value) {
+		return true
+	}
+	ch := value[idx]
+	if ch >= '0' && ch <= '9' {
+		return true
+	}
+	return !(ch >= 'a' && ch <= 'z')
 }
 
 func hasCJK(s string) bool {

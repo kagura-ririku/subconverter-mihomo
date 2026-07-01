@@ -1,11 +1,11 @@
 package config
 
 func defaultRegionOrder() []string {
-	return []string{"HKG", "MAC", "TWN", "JPN", "KOR", "SGP", "USA"}
+	return []string{"HKG", "TWN", "SGP", "JPN", "KOR", "USA"}
 }
 
 func defaultNodeSortRegionOrder() []string {
-	return []string{"HKG", "MAC", "TWN", "JPN", "KOR", "SGP", "USA"}
+	return []string{"HKG", "TWN", "SGP", "JPN", "KOR", "USA"}
 }
 
 func defaultCitylessCountries() map[string]struct{} {
@@ -31,6 +31,26 @@ func defaultRegionFlags() map[string]string {
 		"MYS": "🇲🇾",
 		"NGA": "🇳🇬",
 		"PAK": "🇵🇰",
+		"AUS": "🇦🇺",
+		"NZL": "🇳🇿",
+		"NLD": "🇳🇱",
+		"FRA": "🇫🇷",
+		"UKR": "🇺🇦",
+		"GBR": "🇬🇧",
+		"CAN": "🇨🇦",
+		"IND": "🇮🇳",
+		"ARE": "🇦🇪",
+		"CHE": "🇨🇭",
+		"RUS": "🇷🇺",
+		"VNM": "🇻🇳",
+		"THA": "🇹🇭",
+		"PHL": "🇵🇭",
+		"IDN": "🇮🇩",
+		"BRA": "🇧🇷",
+		"ESP": "🇪🇸",
+		"ITA": "🇮🇹",
+		"POL": "🇵🇱",
+		"SWE": "🇸🇪",
 	}
 }
 
@@ -49,6 +69,26 @@ func defaultRegionKeywords() map[string][]string {
 		"MYS": {"🇲🇾", "马来西亚", "馬來西亞", "MY", "MYS", "Malaysia", "Kuala Lumpur"},
 		"NGA": {"🇳🇬", "尼日利亚", "尼日利亞", "NG", "NGA", "Nigeria", "Lagos"},
 		"PAK": {"🇵🇰", "巴基斯坦", "PK", "PAK", "Pakistan", "Islamabad", "Karachi"},
+		"AUS": {"🇦🇺", "澳大利亚", "澳洲", "AU", "AUS", "Australia", "Sydney", "Melbourne"},
+		"NZL": {"🇳🇿", "新西兰", "紐西蘭", "NZ", "NZL", "New Zealand", "Auckland"},
+		"NLD": {"🇳🇱", "荷兰", "荷蘭", "NL", "NLD", "Netherlands", "Holland", "Amsterdam"},
+		"FRA": {"🇫🇷", "法国", "法國", "FR", "FRA", "France", "Paris"},
+		"UKR": {"🇺🇦", "乌克兰", "烏克蘭", "UA", "UKR", "Ukraine", "Kyiv", "Kiev"},
+		"GBR": {"🇬🇧", "英国", "英國", "UK", "GB", "GBR", "United Kingdom", "Britain", "London"},
+		"CAN": {"🇨🇦", "加拿大", "CA", "CAN", "Canada", "Toronto", "Vancouver", "Montreal"},
+		"IND": {"🇮🇳", "印度", "IN", "IND", "India", "Mumbai", "Delhi"},
+		"ARE": {"🇦🇪", "阿联酋", "阿聯酋", "迪拜", "AE", "ARE", "UAE", "Dubai"},
+		"CHE": {"🇨🇭", "瑞士", "CH", "CHE", "Switzerland", "Zurich", "Geneva"},
+		"RUS": {"🇷🇺", "俄罗斯", "俄羅斯", "RU", "RUS", "Russia", "Moscow"},
+		"VNM": {"🇻🇳", "越南", "VN", "VNM", "Vietnam", "Hanoi", "Ho Chi Minh"},
+		"THA": {"🇹🇭", "泰国", "泰國", "TH", "THA", "Thailand", "Bangkok"},
+		"PHL": {"🇵🇭", "菲律宾", "菲律賓", "PH", "PHL", "Philippines", "Manila"},
+		"IDN": {"🇮🇩", "印尼", "印度尼西亚", "印度尼西亞", "ID", "IDN", "Indonesia", "Jakarta"},
+		"BRA": {"🇧🇷", "巴西", "BR", "BRA", "Brazil", "Sao Paulo", "São Paulo"},
+		"ESP": {"🇪🇸", "西班牙", "ES", "ESP", "Spain", "Madrid"},
+		"ITA": {"🇮🇹", "意大利", "義大利", "IT", "ITA", "Italy", "Milan", "Rome"},
+		"POL": {"🇵🇱", "波兰", "波蘭", "PL", "POL", "Poland", "Warsaw"},
+		"SWE": {"🇸🇪", "瑞典", "SE", "SWE", "Sweden", "Stockholm"},
 	}
 }
 
@@ -83,5 +123,43 @@ func defaultCityKeywords() []CityKeyword {
 		{Country: "USA", City: "Ashburn", Keywords: []string{"阿什本", "Ashburn"}},
 		{Country: "USA", City: "Atlanta", Keywords: []string{"亚特兰大", "Atlanta", "ATL"}},
 		{Country: "USA", City: "Denver", Keywords: []string{"丹佛", "Denver"}},
+		{Country: "AUS", City: "Sydney", Keywords: []string{"悉尼", "雪梨", "Sydney", "SYD"}},
+		{Country: "AUS", City: "Melbourne", Keywords: []string{"墨尔本", "墨爾本", "Melbourne", "MEL"}},
+		{Country: "AUS", City: "Brisbane", Keywords: []string{"布里斯班", "Brisbane", "BNE"}},
+		{Country: "AUS", City: "Perth", Keywords: []string{"珀斯", "Perth", "PER"}},
+		{Country: "NZL", City: "Auckland", Keywords: []string{"奥克兰", "奧克蘭", "Auckland", "AKL"}},
+		{Country: "NLD", City: "Amsterdam", Keywords: []string{"阿姆斯特丹", "Amsterdam", "AMS"}},
+		{Country: "NLD", City: "Rotterdam", Keywords: []string{"鹿特丹", "Rotterdam"}},
+		{Country: "FRA", City: "Paris", Keywords: []string{"巴黎", "Paris", "PAR"}},
+		{Country: "FRA", City: "Marseille", Keywords: []string{"马赛", "馬賽", "Marseille"}},
+		{Country: "UKR", City: "Kyiv", Keywords: []string{"基辅", "基輔", "Kyiv", "Kiev"}},
+		{Country: "GBR", City: "London", Keywords: []string{"伦敦", "倫敦", "London", "LON"}},
+		{Country: "GBR", City: "Manchester", Keywords: []string{"曼彻斯特", "曼徹斯特", "Manchester"}},
+		{Country: "CAN", City: "Toronto", Keywords: []string{"多伦多", "多倫多", "Toronto", "YYZ"}},
+		{Country: "CAN", City: "Vancouver", Keywords: []string{"温哥华", "溫哥華", "Vancouver", "YVR"}},
+		{Country: "CAN", City: "Montreal", Keywords: []string{"蒙特利尔", "蒙特利爾", "Montreal", "Montréal", "YUL"}},
+		{Country: "IND", City: "Mumbai", Keywords: []string{"孟买", "孟買", "Mumbai", "BOM"}},
+		{Country: "IND", City: "Delhi", Keywords: []string{"德里", "Delhi", "DEL"}},
+		{Country: "IND", City: "Chennai", Keywords: []string{"金奈", "Chennai", "MAA"}},
+		{Country: "IND", City: "Bangalore", Keywords: []string{"班加罗尔", "班加羅爾", "Bangalore", "Bengaluru", "BLR"}},
+		{Country: "ARE", City: "Dubai", Keywords: []string{"迪拜", "Dubai", "DXB"}},
+		{Country: "ARE", City: "Abu Dhabi", Keywords: []string{"阿布扎比", "Abu Dhabi", "AbuDhabi", "AUH"}},
+		{Country: "CHE", City: "Zurich", Keywords: []string{"苏黎世", "蘇黎世", "Zurich", "Zürich", "ZRH"}},
+		{Country: "CHE", City: "Geneva", Keywords: []string{"日内瓦", "日內瓦", "Geneva", "GVA"}},
+		{Country: "RUS", City: "Moscow", Keywords: []string{"莫斯科", "Moscow", "MOW"}},
+		{Country: "RUS", City: "Saint Petersburg", Keywords: []string{"圣彼得堡", "聖彼得堡", "Saint Petersburg", "St Petersburg", "StPetersburg", "LED"}},
+		{Country: "VNM", City: "Hanoi", Keywords: []string{"河内", "河內", "Hanoi", "HAN"}},
+		{Country: "VNM", City: "Ho Chi Minh", Keywords: []string{"胡志明", "Ho Chi Minh", "HoChiMinh", "Saigon", "SGN"}},
+		{Country: "THA", City: "Bangkok", Keywords: []string{"曼谷", "Bangkok", "BKK"}},
+		{Country: "PHL", City: "Manila", Keywords: []string{"马尼拉", "馬尼拉", "Manila", "MNL"}},
+		{Country: "IDN", City: "Jakarta", Keywords: []string{"雅加达", "雅加達", "Jakarta", "JKT", "CGK"}},
+		{Country: "BRA", City: "Sao Paulo", Keywords: []string{"圣保罗", "聖保羅", "Sao Paulo", "São Paulo", "SaoPaulo", "GRU"}},
+		{Country: "BRA", City: "Rio de Janeiro", Keywords: []string{"里约热内卢", "里約熱內盧", "Rio de Janeiro", "RioDeJaneiro", "GIG"}},
+		{Country: "ESP", City: "Madrid", Keywords: []string{"马德里", "馬德里", "Madrid", "MAD"}},
+		{Country: "ESP", City: "Barcelona", Keywords: []string{"巴塞罗那", "巴塞羅那", "Barcelona", "BCN"}},
+		{Country: "ITA", City: "Milan", Keywords: []string{"米兰", "米蘭", "Milan", "Milano", "MXP"}},
+		{Country: "ITA", City: "Rome", Keywords: []string{"罗马", "羅馬", "Rome", "Roma", "FCO"}},
+		{Country: "POL", City: "Warsaw", Keywords: []string{"华沙", "華沙", "Warsaw", "WAW"}},
+		{Country: "SWE", City: "Stockholm", Keywords: []string{"斯德哥尔摩", "斯德哥爾摩", "Stockholm", "ARN"}},
 	}
 }

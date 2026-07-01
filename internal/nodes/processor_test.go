@@ -31,6 +31,7 @@ func TestExtractRegionInfoPrefersCityBeforeCountry(t *testing.T) {
 		CitylessCountries: map[string]struct{}{},
 		RegionKeywords: map[string][]string{
 			"NGA": {"NG", "NGA", "Nigeria"},
+			"TWN": {"TW", "TWN", "Taiwan"},
 			"USA": {"US", "USA", "America"},
 		},
 		CityKeywords: []config.CityKeyword{
@@ -49,6 +50,7 @@ func TestExtractRegionInfoMatchesCountryOnlyFromLeadingRegionPart(t *testing.T) 
 		CitylessCountries: map[string]struct{}{},
 		RegionKeywords: map[string][]string{
 			"NGA": {"NG", "NGA", "Nigeria"},
+			"TWN": {"TW", "TWN", "Taiwan"},
 			"USA": {"US", "USA", "America"},
 		},
 		CityKeywords: []config.CityKeyword{},
@@ -59,6 +61,8 @@ func TestExtractRegionInfoMatchesCountryOnlyFromLeadingRegionPart(t *testing.T) 
 		want string
 	}{
 		{name: "NG-01 Lagos", want: "NGA"},
+		{name: "TW01 0.2x", want: "TWN"},
+		{name: "TWICE node", want: "Unknown"},
 		{name: "USA Los Angeles 01", want: "USA"},
 		{name: "Relay NG 01", want: "Unknown"},
 		{name: "Los Angeles 01", want: "Unknown"},
