@@ -63,6 +63,8 @@ func TestExtractRegionInfoMatchesCountryOnlyFromLeadingRegionPart(t *testing.T) 
 	}{
 		{name: "NG-01 Lagos", want: "NGA"},
 		{name: "TW01 0.2x", want: "TWN"},
+		{name: "🇨🇳 TW01 0.2x", want: "TWN"},
+		{name: "🇨🇳-TW01 0.2x", want: "TWN"},
 		{name: "TWICE node", want: "Unknown"},
 		{name: "USA Los Angeles 01", want: "USA"},
 		{name: "Relay NG 01", want: "Unknown"},
@@ -128,7 +130,7 @@ func TestApplyUsesDefaultPrimaryRegionSortBeforeExtraRegions(t *testing.T) {
 		testNode(providerName, "HK01"),
 		testNode(providerName, "mystery"),
 		testNode(providerName, "KR01"),
-		testNode(providerName, "TW01"),
+		testNode(providerName, "🇨🇳 TW01 0.2x"),
 		testNode(providerName, "NL01 Amsterdam"),
 		testNode(providerName, "JP01"),
 		testNode(providerName, "SG01"),

@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
 
 	"github.com/kagura-ririku/subconverter-mihomo/internal/config"
 	"github.com/kagura-ririku/subconverter-mihomo/internal/model"
@@ -372,22 +373,63 @@ func extractRegionInfo(name string, cfg *config.Config) regionInfo {
 	bestCountry := ""
 	bestKeywordLength := 0
 	bestOrder := 0
-	for order, country := range orderedRegionCountries(cfg) {
-		matchLength := bestLeadingKeywordLength(name, cfg.RegionKeywords[country])
-		if matchLength == 0 {
-			continue
+	for _, candidate := range leadingCountryCandidates(name) {
+		for order, country := range orderedRegionCountries(cfg) {
+			matchLength := bestLeadingKeywordLength(candidate, cfg.RegionKeywords[country])
+			if matchLength == 0 {
+				continue
+			}
+			if matchLength > bestKeywordLength || (matchLength == bestKeywordLength && (bestCountry == "" || order < bestOrder)) {
+				bestCountry = country
+				bestKeywordLength = matchLength
+				bestOrder = order
+			}
 		}
-		if matchLength > bestKeywordLength || (matchLength == bestKeywordLength && (bestCountry == "" || order < bestOrder)) {
-			bestCountry = country
-			bestKeywordLength = matchLength
-			bestOrder = order
+		if bestCountry != "" {
+			return regionInfo{Country: bestCountry}
 		}
-	}
-	if bestCountry != "" {
-		return regionInfo{Country: bestCountry}
 	}
 
 	return regionInfo{Country: "Unknown"}
+}
+
+func leadingCountryCandidates(name string) []string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return nil
+	}
+
+	candidates := []string{}
+	stripped := stripLeadingRegionalIndicators(name)
+	if stripped != "" && stripped != name {
+		candidates = append(candidates, stripped)
+	}
+	candidates = append(candidates, name)
+	return candidates
+}
+
+func stripLeadingRegionalIndicators(name string) string {
+	runes := []rune(strings.TrimSpace(name))
+	idx := 0
+	for idx < len(runes) && isRegionalIndicatorRune(runes[idx]) {
+		idx++
+	}
+	if idx == 0 {
+		return string(runes)
+	}
+	return strings.TrimLeftFunc(string(runes[idx:]), isLeadingRegionSeparator)
+}
+
+func isLeadingRegionSeparator(r rune) bool {
+	if unicode.IsSpace(r) {
+		return true
+	}
+	switch r {
+	case '-', '_', '|', '/', '\\', ':', '.', ',', '+', '~', '#', '@', '[', ']', '(', ')':
+		return true
+	default:
+		return false
+	}
 }
 
 func orderedRegionCountries(cfg *config.Config) []string {
@@ -521,9 +563,13 @@ func hasCJK(s string) bool {
 
 func hasRegionalIndicator(s string) bool {
 	for _, r := range s {
-		if r >= 0x1f1e6 && r <= 0x1f1ff {
+		if isRegionalIndicatorRune(r) {
 			return true
 		}
 	}
 	return false
+}
+
+func isRegionalIndicatorRune(r rune) bool {
+	return r >= 0x1f1e6 && r <= 0x1f1ff
 }
