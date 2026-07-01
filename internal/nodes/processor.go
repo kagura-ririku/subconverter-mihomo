@@ -349,6 +349,12 @@ func sortNodesByRegion(nodes []model.Node, cfg *config.Config) {
 		if leftOrder != rightOrder {
 			return leftOrder < rightOrder
 		}
+		if left.Country == "Unknown" && right.Country != "Unknown" {
+			return false
+		}
+		if left.Country != "Unknown" && right.Country == "Unknown" {
+			return true
+		}
 		if left.City != right.City {
 			return left.City < right.City
 		}
@@ -363,30 +369,80 @@ func extractRegionInfo(name string, cfg *config.Config) regionInfo {
 		}
 	}
 
-	for country, keywords := range cfg.RegionKeywords {
-		if !matchesLeadingKeywordList(name, keywords) {
+	bestCountry := ""
+	bestKeywordLength := 0
+	bestOrder := 0
+	for order, country := range orderedRegionCountries(cfg) {
+		matchLength := bestLeadingKeywordLength(name, cfg.RegionKeywords[country])
+		if matchLength == 0 {
 			continue
 		}
-		if _, ok := cfg.CitylessCountries[country]; ok {
-			return regionInfo{Country: country}
+		if matchLength > bestKeywordLength || (matchLength == bestKeywordLength && (bestCountry == "" || order < bestOrder)) {
+			bestCountry = country
+			bestKeywordLength = matchLength
+			bestOrder = order
 		}
-		return regionInfo{Country: country}
 	}
+	if bestCountry != "" {
+		return regionInfo{Country: bestCountry}
+	}
+
 	return regionInfo{Country: "Unknown"}
+}
+
+func orderedRegionCountries(cfg *config.Config) []string {
+	seen := map[string]struct{}{}
+	result := make([]string, 0, len(cfg.RegionKeywords))
+
+	for _, country := range cfg.RegionOrder {
+		country = strings.ToUpper(strings.TrimSpace(country))
+		if country == "" {
+			continue
+		}
+		if _, ok := cfg.RegionKeywords[country]; !ok {
+			continue
+		}
+		if _, ok := seen[country]; ok {
+			continue
+		}
+		seen[country] = struct{}{}
+		result = append(result, country)
+	}
+
+	rest := make([]string, 0, len(cfg.RegionKeywords))
+	for country := range cfg.RegionKeywords {
+		country = strings.ToUpper(strings.TrimSpace(country))
+		if country == "" {
+			continue
+		}
+		if _, ok := seen[country]; ok {
+			continue
+		}
+		seen[country] = struct{}{}
+		rest = append(rest, country)
+	}
+	sort.Strings(rest)
+
+	return append(result, rest...)
+}
+
+func bestLeadingKeywordLength(name string, keywords []string) int {
+	best := 0
+	for _, keyword := range keywords {
+		if !matchLeadingKeyword(name, keyword) {
+			continue
+		}
+		length := len([]rune(strings.TrimSpace(keyword)))
+		if length > best {
+			best = length
+		}
+	}
+	return best
 }
 
 func matchesKeywordList(name string, keywords []string) bool {
 	for _, keyword := range keywords {
 		if matchKeyword(name, keyword) {
-			return true
-		}
-	}
-	return false
-}
-
-func matchesLeadingKeywordList(name string, keywords []string) bool {
-	for _, keyword := range keywords {
-		if matchLeadingKeyword(name, keyword) {
 			return true
 		}
 	}

@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -117,7 +118,10 @@ func (a *Application) handleSubscription(w http.ResponseWriter, r *http.Request)
 	}()
 
 	providerNames := subscription.ProviderNames()
-	a.updateProvidersConcurrently(ctx, providerNames)
+	if err := a.updateProvidersConcurrently(ctx, providerNames); err != nil {
+		http.Error(w, "failed to update upstream providers: "+err.Error(), http.StatusBadGateway)
+		return
+	}
 
 	externalConfigResult := <-externalConfigCh
 	if externalConfigResult.err != nil {
@@ -195,19 +199,25 @@ func (a *Application) allowHost(hostport string) bool {
 	return false
 }
 
-func (a *Application) updateProvidersConcurrently(ctx context.Context, providerNames []string) {
+func (a *Application) updateProvidersConcurrently(ctx context.Context, providerNames []string) error {
 	var wg sync.WaitGroup
+	var mu sync.Mutex
+	errs := []error{}
+
 	for _, providerName := range providerNames {
 		providerName := providerName
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			if err := a.controller.UpdateProvider(ctx, providerName); err != nil {
-				log.Printf("provider update %s failed: %v", providerName, err)
+				mu.Lock()
+				errs = append(errs, err)
+				mu.Unlock()
 			}
 		}()
 	}
 	wg.Wait()
+	return errors.Join(errs...)
 }
 
 func contentDisposition(filename string) string {

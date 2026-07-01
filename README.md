@@ -18,7 +18,7 @@ ghcr.io/kagura-ririku/subconverter-mihomo:latest
 - 每个订阅组可配置固定远程配置
 - 支持订阅级和上游级节点筛选
 - 自动重命名节点并添加地区旗帜
-- 可按固定顺序排序节点：`港澳台日韩新美`
+- 可按固定顺序排序节点：`港台新日韩美`，其它已识别地区和未知地区排在后面
 - 保留上游返回的 `subscription-userinfo`
 - 支持按路径区分订阅格式，例如 `https://your-domain/<uuid>/clash`
 - 不支持任何查询参数
@@ -86,7 +86,7 @@ cd subconverter-mihomo
 
 ```bash
 docker compose pull
-docker compose up -d
+docker compose up -d --force-recreate
 ```
 
 6. 访问订阅：
