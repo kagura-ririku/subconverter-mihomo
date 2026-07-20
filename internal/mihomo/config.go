@@ -26,27 +26,35 @@ func WriteRuntimeConfig(cfg *config.Config) error {
 				continue
 			}
 			groupUses = append(groupUses, name)
-			providerCachePath := filepath.Join(providersDir, name+".yaml")
-			if err := ensureProviderCacheFile(providerCachePath); err != nil {
-				return err
-			}
-
-			header := map[string][]string{}
-			for key, value := range upstream.Headers {
-				header[key] = []string{value}
-			}
-			if upstream.UserAgent != "" {
-				header["User-Agent"] = []string{upstream.UserAgent}
-			}
-
+			providerPath := providerRelativePath(name)
 			provider := map[string]any{
-				"type":     "http",
-				"url":      upstream.URL,
-				"interval": 0,
-				"path":     filepath.ToSlash(filepath.Join("providers", name+".yaml")),
+				"path": providerPath,
 			}
-			if len(header) > 0 {
-				provider["header"] = header
+			if upstream.IsLocal() {
+				if err := syncLocalProviderFile(cfg, &upstream); err != nil {
+					return err
+				}
+				provider["type"] = "file"
+			} else {
+				providerCachePath := filepath.Join(cfg.MihomoHome, filepath.FromSlash(providerPath))
+				if err := ensureProviderCacheFile(providerCachePath); err != nil {
+					return err
+				}
+
+				header := map[string][]string{}
+				for key, value := range upstream.Headers {
+					header[key] = []string{value}
+				}
+				if upstream.UserAgent != "" {
+					header["User-Agent"] = []string{upstream.UserAgent}
+				}
+
+				provider["type"] = "http"
+				provider["url"] = upstream.URL
+				provider["interval"] = 0
+				if len(header) > 0 {
+					provider["header"] = header
+				}
 			}
 			proxyProviders[name] = provider
 		}

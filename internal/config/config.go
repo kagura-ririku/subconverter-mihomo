@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -18,13 +19,19 @@ type RegexList []string
 type Upstream struct {
 	Name            string            `json:"name"`
 	URL             string            `json:"url"`
+	Path            string            `json:"path"`
 	UserAgent       string            `json:"user_agent"`
 	Headers         map[string]string `json:"headers"`
 	IncludeRegex    RegexList         `json:"include_regex"`
 	ExcludeRegex    RegexList         `json:"exclude_regex"`
+	LocalPath       string            `json:"-"`
 	ProviderName    string            `json:"-"`
 	IncludePatterns []*regexp.Regexp  `json:"-"`
 	ExcludePatterns []*regexp.Regexp  `json:"-"`
+}
+
+func (u *Upstream) IsLocal() bool {
+	return u.LocalPath != ""
 }
 
 type CityKeyword struct {
@@ -182,7 +189,7 @@ func loadSubscriptions() ([]Subscription, error) {
 	if err := json.Unmarshal([]byte(raw), &subscriptions); err != nil {
 		return nil, fmt.Errorf("parse SUBCONVERTER_SUBSCRIPTIONS_JSON: %w", err)
 	}
-	return prepareSubscriptions(subscriptions)
+	return prepareSubscriptions(subscriptions, filepath.Dir(defaultSubscriptionsFile))
 }
 
 func loadSubscriptionsFromFile(path string) ([]Subscription, error) {
@@ -195,10 +202,10 @@ func loadSubscriptionsFromFile(path string) ([]Subscription, error) {
 	if err := json.Unmarshal(content, &subscriptions); err != nil {
 		return nil, fmt.Errorf("parse subscriptions file %q: %w", path, err)
 	}
-	return prepareSubscriptions(subscriptions)
+	return prepareSubscriptions(subscriptions, filepath.Dir(path))
 }
 
-func prepareSubscriptions(subscriptions []Subscription) ([]Subscription, error) {
+func prepareSubscriptions(subscriptions []Subscription, subscriptionsDir string) ([]Subscription, error) {
 	seenUUIDs := map[string]struct{}{}
 
 	for subIdx := range subscriptions {
@@ -243,10 +250,20 @@ func prepareSubscriptions(subscriptions []Subscription) ([]Subscription, error) 
 				upstream.Name = fmt.Sprintf("upstream-%d", upstreamIdx+1)
 			}
 			upstream.URL = strings.TrimSpace(upstream.URL)
-			if upstream.URL == "" {
-				return nil, fmt.Errorf("subscription %q upstream %q missing url", subscription.Name, upstream.Name)
+			upstream.Path = strings.TrimSpace(upstream.Path)
+			switch {
+			case upstream.URL == "" && upstream.Path == "":
+				return nil, fmt.Errorf("subscription %q upstream %q must contain url or path", subscription.Name, upstream.Name)
+			case upstream.URL != "" && upstream.Path != "":
+				return nil, fmt.Errorf("subscription %q upstream %q cannot contain both url and path", subscription.Name, upstream.Name)
+			case upstream.Path != "":
+				localPath, err := resolveLocalUpstreamPath(subscriptionsDir, upstream.Path)
+				if err != nil {
+					return nil, fmt.Errorf("subscription %q upstream %q: %w", subscription.Name, upstream.Name, err)
+				}
+				upstream.LocalPath = localPath
 			}
-			if strings.TrimSpace(upstream.UserAgent) == "" {
+			if upstream.URL != "" && strings.TrimSpace(upstream.UserAgent) == "" {
 				upstream.UserAgent = "MetaCubeX/mihomo"
 			}
 			if upstream.Headers == nil {
@@ -268,6 +285,47 @@ func prepareSubscriptions(subscriptions []Subscription) ([]Subscription, error) 
 	}
 
 	return subscriptions, nil
+}
+
+func resolveLocalUpstreamPath(subscriptionsDir, path string) (string, error) {
+	extension := strings.ToLower(filepath.Ext(path))
+	if extension != ".yaml" && extension != ".yml" {
+		return "", fmt.Errorf("local upstream path %q must use .yaml or .yml", path)
+	}
+
+	baseDir, err := filepath.Abs(subscriptionsDir)
+	if err != nil {
+		return "", fmt.Errorf("resolve subscriptions directory: %w", err)
+	}
+	baseDir, err = filepath.EvalSymlinks(baseDir)
+	if err != nil {
+		return "", fmt.Errorf("resolve subscriptions directory links: %w", err)
+	}
+	resolved := path
+	if !filepath.IsAbs(resolved) {
+		resolved = filepath.Join(baseDir, resolved)
+	}
+	resolved, err = filepath.Abs(resolved)
+	if err != nil {
+		return "", fmt.Errorf("resolve local upstream path %q: %w", path, err)
+	}
+	resolved, err = filepath.EvalSymlinks(resolved)
+	if err != nil {
+		return "", fmt.Errorf("read local upstream path %q: %w", path, err)
+	}
+
+	relative, err := filepath.Rel(baseDir, resolved)
+	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("local upstream path %q must stay inside %s", path, baseDir)
+	}
+	info, err := os.Stat(resolved)
+	if err != nil {
+		return "", fmt.Errorf("read local upstream path %q: %w", path, err)
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("local upstream path %q is not a regular file", path)
+	}
+	return resolved, nil
 }
 
 func buildProviderName(subscriptionName string, subIdx int, upstreamName string, upstreamIdx int) string {

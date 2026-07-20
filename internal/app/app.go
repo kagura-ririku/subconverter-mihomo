@@ -117,6 +117,10 @@ func (a *Application) handleSubscription(w http.ResponseWriter, r *http.Request)
 		}
 	}()
 
+	if err := mihomo.SyncLocalProviders(a.cfg, subscription); err != nil {
+		http.Error(w, "failed to load local providers: "+err.Error(), http.StatusBadGateway)
+		return
+	}
 	providerNames := subscription.ProviderNames()
 	if err := a.updateProvidersConcurrently(ctx, providerNames); err != nil {
 		http.Error(w, "failed to update upstream providers: "+err.Error(), http.StatusBadGateway)

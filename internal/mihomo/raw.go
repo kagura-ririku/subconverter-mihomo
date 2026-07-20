@@ -23,7 +23,7 @@ func LoadRawProviders(cfg *config.Config, providerNames []string) (map[string][]
 		if strings.TrimSpace(name) == "" {
 			continue
 		}
-		path := filepath.Join(cfg.MihomoHome, "providers", name+".yaml")
+		path := filepath.Join(cfg.MihomoHome, filepath.FromSlash(providerRelativePath(name)))
 		content, err := os.ReadFile(path)
 		if err != nil {
 			return nil, fmt.Errorf("read provider cache %s: %w", path, err)

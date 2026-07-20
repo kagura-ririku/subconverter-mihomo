@@ -9,9 +9,8 @@
     "exclude_regex": [],
     "upstreams": [
       {
-        "url": "https://example.com/subscription-a",
-        "user_agent": "MetaCubeX/mihomo",
-        "headers": {},
+        "name": "local-mihomo-config",
+        "path": "upstreams/config.yaml",
         "include_regex": [],
         "exclude_regex": []
       },

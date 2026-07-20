@@ -1,0 +1,59 @@
+mixed-port: 7890
+allow-lan: false
+bind-address: 127.0.0.1
+mode: rule
+log-level: info
+unified-delay: true
+external-controller: 127.0.0.1:9090
+secret: ""
+
+profile:
+  store-selected: true
+  store-fake-ip: true
+
+dns:
+  enable: true
+  ipv6: true
+  enhanced-mode: fake-ip
+  fake-ip-filter:
+    - geosite:private
+    - geosite:category-ntp
+  use-hosts: false
+  use-system-hosts: false
+  respect-rules: true
+  nameserver:
+    - https://1.1.1.1/dns-query
+    - https://8.8.8.8/dns-query
+  proxy-server-nameserver:
+    - https://223.5.5.5/dns-query
+    - https://223.6.6.6/dns-query
+  direct-nameserver:
+    - https://223.5.5.5/dns-query
+    - https://223.6.6.6/dns-query
+
+proxies:
+  - name: "HK Example 01"
+    type: ss
+    server: hk.example.com
+    port: 443
+    cipher: aes-128-gcm
+    password: change-me
+
+  - name: "JP Example 01"
+    type: ss
+    server: jp.example.com
+    port: 443
+    cipher: aes-128-gcm
+    password: change-me
+
+proxy-groups:
+  - name: PROXY
+    type: select
+    proxies:
+      - "HK Example 01"
+      - "JP Example 01"
+      - DIRECT
+
+rules:
+  - DOMAIN-SUFFIX,example.com,DIRECT
+  - MATCH,PROXY
