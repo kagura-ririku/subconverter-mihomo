@@ -140,7 +140,6 @@ config/
 
 ```json
 {
-  "name": "local-mihomo-config",
   "path": "upstreams/config.yaml",
   "include_regex": [],
   "exclude_regex": []
