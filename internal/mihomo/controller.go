@@ -1,9 +1,11 @@
 package mihomo
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -16,6 +18,8 @@ type Controller struct {
 	baseURL string
 	client  *http.Client
 }
+
+const maxProviderMetadataSize = 16 << 20
 
 func NewController(baseURL string, timeout time.Duration) *Controller {
 	return &Controller{
@@ -59,7 +63,34 @@ func (c *Controller) Version(ctx context.Context) error {
 	return nil
 }
 
-func (c *Controller) Providers(ctx context.Context) (map[string]model.Provider, error) {
+func (c *Controller) ReloadConfig(ctx context.Context, content []byte) error {
+	payload, err := json.Marshal(struct {
+		Path    string `json:"path"`
+		Payload string `json:"payload"`
+	}{
+		Path:    "",
+		Payload: string(content),
+	})
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, c.baseURL+"/configs?force=true", bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode/100 != 2 {
+		return fmt.Errorf("reload config status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func (c *Controller) Providers(ctx context.Context) (map[string]model.ProviderMetadata, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/providers/proxies", nil)
 	if err != nil {
 		return nil, err
@@ -73,11 +104,26 @@ func (c *Controller) Providers(ctx context.Context) (map[string]model.Provider, 
 		return nil, fmt.Errorf("providers status %d", resp.StatusCode)
 	}
 
-	decoded := model.ProvidersResponse{}
-	if err := json.NewDecoder(resp.Body).Decode(&decoded); err != nil {
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxProviderMetadataSize+1))
+	if err != nil {
 		return nil, err
 	}
-	return decoded.Providers, nil
+	if len(body) > maxProviderMetadataSize {
+		return nil, fmt.Errorf("providers response exceeds %d bytes", maxProviderMetadataSize)
+	}
+	var decoded struct {
+		Providers map[string]struct {
+			SubscriptionInfo model.SubscriptionInfo `json:"subscriptionInfo"`
+		} `json:"providers"`
+	}
+	if err := json.Unmarshal(body, &decoded); err != nil {
+		return nil, err
+	}
+	providers := make(map[string]model.ProviderMetadata, len(decoded.Providers))
+	for name, provider := range decoded.Providers {
+		providers[name] = model.ProviderMetadata{SubscriptionInfo: provider.SubscriptionInfo}
+	}
+	return providers, nil
 }
 
 func (c *Controller) UpdateProvider(ctx context.Context, name string) error {

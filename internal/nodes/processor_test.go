@@ -173,3 +173,15 @@ func testNode(providerName, name string) model.Node {
 		},
 	}
 }
+
+func TestSelectSubscriptionInfoIgnoresProvidersOutsideSuccessfulOrder(t *testing.T) {
+	providers := map[string]model.ProviderMetadata{
+		"failed": {
+			SubscriptionInfo: model.SubscriptionInfo{Download: 123},
+		},
+	}
+
+	if got := SelectSubscriptionInfo(providers, []string{"successful"}); got != nil {
+		t.Fatalf("SelectSubscriptionInfo() = %#v, want nil", got)
+	}
+}

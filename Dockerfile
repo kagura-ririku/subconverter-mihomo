@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.26.2-alpine3.23 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27.0-alpine3.24 AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -13,7 +13,7 @@ COPY internal ./internal
 
 RUN CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-s -w" -o /out/subconverter ./cmd/subconverter
 
-FROM alpine:3.23.2
+FROM alpine:3.24.1
 
 RUN apk add --no-cache ca-certificates tzdata
 

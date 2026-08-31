@@ -3,7 +3,6 @@ package model
 import (
 	"strconv"
 	"strings"
-	"time"
 )
 
 type SubscriptionInfo struct {
@@ -20,19 +19,8 @@ func (s SubscriptionInfo) HeaderValue() string {
 		"; expire=" + itoa64(s.Expire)
 }
 
-type Provider struct {
-	Name             string           `json:"name"`
-	Type             string           `json:"type"`
-	VehicleType      string           `json:"vehicleType"`
-	UpdatedAt        time.Time        `json:"updatedAt"`
-	SubscriptionInfo SubscriptionInfo `json:"subscriptionInfo"`
-	Proxies          []Proxy          `json:"proxies"`
-}
-
-type Proxy map[string]any
-
-type ProvidersResponse struct {
-	Providers map[string]Provider `json:"providers"`
+type ProviderMetadata struct {
+	SubscriptionInfo SubscriptionInfo
 }
 
 type Node struct {

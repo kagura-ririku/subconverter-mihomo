@@ -49,6 +49,8 @@ type Compiled struct {
 	Rules         []string
 }
 
+const maxRemoteResourceSize = 16 << 20
+
 func Load(ctx context.Context, cfg *config.Config, rawRef string) (*ExternalConfig, error) {
 	rawRef = strings.TrimSpace(rawRef)
 	if rawRef == "" {
@@ -74,6 +76,7 @@ func Compile(ctx context.Context, cfg *config.Config, ext *ExternalConfig, allNo
 	if ext == nil {
 		base.ProxyGroups = defaultProxyGroups(allNodes)
 		base.Rules = []string{"MATCH,PROXY"}
+		migrateGlobalClientFingerprint(base.BaseExtras, allNodes)
 		return base, nil
 	}
 
@@ -159,7 +162,49 @@ func Compile(ctx context.Context, cfg *config.Config, ext *ExternalConfig, allNo
 		base.Rules = []string{"MATCH,PROXY"}
 	}
 
+	migrateGlobalClientFingerprint(base.BaseExtras, allNodes)
 	return base, nil
+}
+
+func migrateGlobalClientFingerprint(baseExtras map[string]any, allNodes []model.Node) {
+	value, exists := baseExtras["global-client-fingerprint"]
+	if !exists {
+		return
+	}
+	delete(baseExtras, "global-client-fingerprint")
+
+	fingerprint, ok := value.(string)
+	if !ok {
+		return
+	}
+	fingerprint = strings.TrimSpace(fingerprint)
+	if fingerprint == "" {
+		return
+	}
+
+	for idx := range allNodes {
+		proxy := allNodes[idx].Proxy
+		if proxy == nil {
+			continue
+		}
+		proxyType, ok := proxy["type"].(string)
+		if !ok || !supportsClientFingerprint(proxyType) {
+			continue
+		}
+		if _, exists := proxy["client-fingerprint"]; exists {
+			continue
+		}
+		proxy["client-fingerprint"] = fingerprint
+	}
+}
+
+func supportsClientFingerprint(proxyType string) bool {
+	switch strings.ToLower(strings.TrimSpace(proxyType)) {
+	case "ss", "vmess", "vless", "trojan", "anytls", "snell", "trusttunnel", "gost-relay":
+		return true
+	default:
+		return false
+	}
 }
 
 func parseINIExternal(ctx context.Context, cfg *config.Config, source string, content []byte) (*ExternalConfig, error) {
@@ -432,10 +477,13 @@ func compileProxyGroups(specs []string, allNodes []model.Node) []map[string]any 
 	}
 
 	validTargets := map[string]struct{}{
-		"DIRECT": {},
-		"REJECT": {},
-		"GLOBAL": {},
-		"PASS":   {},
+		"DIRECT":      {},
+		"REJECT":      {},
+		"REJECT-DROP": {},
+		"COMPATIBLE":  {},
+		"GLOBAL":      {},
+		"PASS":        {},
+		"PASS-RULE":   {},
 	}
 	for _, node := range allNodes {
 		validTargets[node.FinalName] = struct{}{}
@@ -666,11 +714,13 @@ func resolveRuleSource(ctx context.Context, cfg *config.Config, baseSource strin
 		return nil, err
 	}
 	provider := map[string]any{
-		"type":     "http",
-		"url":      source,
-		"behavior": behavior,
-		"interval": spec.Interval,
-		"path":     filepath.ToSlash(filepath.Join("ruleset", sanitizeName(spec.Group)+".yaml")),
+		"type":       "http",
+		"url":        source,
+		"behavior":   behavior,
+		"interval":   spec.Interval,
+		"path":       filepath.ToSlash(filepath.Join("ruleset", sanitizeName(spec.Group)+".yaml")),
+		"proxy":      "DIRECT",
+		"size-limit": maxRemoteResourceSize,
 	}
 	if format != "" {
 		provider["format"] = format
@@ -880,11 +930,21 @@ func ruleProviderShape(kind, source string) (behavior string, format string, err
 }
 
 func inferRuleFormat(source string) string {
-	lower := strings.ToLower(source)
-	if strings.HasSuffix(lower, ".yaml") || strings.HasSuffix(lower, ".yml") {
-		return "yaml"
+	path := strings.TrimSpace(source)
+	if parsed, err := url.Parse(path); err == nil && parsed.Path != "" {
+		path = parsed.Path
+	} else if cut := strings.IndexAny(path, "?#"); cut >= 0 {
+		path = path[:cut]
 	}
-	return "text"
+
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".mrs":
+		return "mrs"
+	case ".yaml", ".yml":
+		return "yaml"
+	default:
+		return "text"
+	}
 }
 
 func isRuleType(value string) bool {
@@ -918,8 +978,14 @@ func readResource(ctx context.Context, cfg *config.Config, ref string, baseSourc
 	if resp.StatusCode/100 != 2 {
 		return nil, "", fmt.Errorf("fetch %s: status %d", resolved, resp.StatusCode)
 	}
-	body, err := io.ReadAll(resp.Body)
-	return body, resolved, err
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxRemoteResourceSize+1))
+	if err != nil {
+		return nil, "", err
+	}
+	if len(body) > maxRemoteResourceSize {
+		return nil, "", fmt.Errorf("fetch %s: response exceeds %d bytes", resolved, maxRemoteResourceSize)
+	}
+	return body, resolved, nil
 }
 
 func resolveRemoteRef(ref string, baseSource string) (string, error) {
@@ -943,7 +1009,16 @@ func resolveRemoteRef(ref string, baseSource string) (string, error) {
 }
 
 func looksLikeURL(value string) bool {
-	return strings.HasPrefix(value, "http://") || strings.HasPrefix(value, "https://")
+	parsed, err := url.Parse(strings.TrimSpace(value))
+	if err != nil || parsed.Host == "" {
+		return false
+	}
+	switch strings.ToLower(parsed.Scheme) {
+	case "http", "https":
+		return true
+	default:
+		return false
+	}
 }
 
 func sanitizeName(value string) string {

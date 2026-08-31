@@ -1,6 +1,7 @@
 package render
 
 import (
+	"fmt"
 	"sort"
 
 	"github.com/kagura-ririku/subconverter-mihomo/internal/model"
@@ -17,32 +18,48 @@ func Clash(compiled *remoteconfig.Compiled, allNodes []model.Node) ([]byte, erro
 	}
 	sort.Strings(keys)
 	for _, key := range keys {
-		appendValue(root, key, compiled.BaseExtras[key])
+		if err := appendValue(root, key, compiled.BaseExtras[key]); err != nil {
+			return nil, err
+		}
 	}
 
 	proxies := make([]map[string]any, 0, len(allNodes))
 	for _, node := range allNodes {
 		proxies = append(proxies, node.Proxy)
 	}
-	appendValue(root, "proxies", proxies)
-	appendValue(root, "proxy-groups", compiled.ProxyGroups)
-	if len(compiled.RuleProviders) > 0 {
-		appendValue(root, "rule-providers", compiled.RuleProviders)
+	if err := appendValue(root, "proxies", proxies); err != nil {
+		return nil, err
 	}
-	appendValue(root, "rules", compiled.Rules)
+	if err := appendValue(root, "proxy-groups", compiled.ProxyGroups); err != nil {
+		return nil, err
+	}
+	if len(compiled.RuleProviders) > 0 {
+		if err := appendValue(root, "rule-providers", compiled.RuleProviders); err != nil {
+			return nil, err
+		}
+	}
+	if err := appendValue(root, "rules", compiled.Rules); err != nil {
+		return nil, err
+	}
 
 	return yaml.Marshal(root)
 }
 
-func appendValue(root *yaml.Node, key string, value any) {
+func appendValue(root *yaml.Node, key string, value any) (err error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = fmt.Errorf("marshal YAML field %q: %v", key, recovered)
+		}
+	}()
+
 	keyNode := &yaml.Node{Kind: yaml.ScalarNode, Value: key}
 	valueNode := &yaml.Node{}
 	encoded, err := yaml.Marshal(value)
 	if err != nil {
-		return
+		return err
 	}
 	if err := yaml.Unmarshal(encoded, valueNode); err != nil {
-		return
+		return err
 	}
 	if valueNode.Kind == yaml.DocumentNode && len(valueNode.Content) > 0 {
 		valueNode = valueNode.Content[0]
@@ -51,4 +68,5 @@ func appendValue(root *yaml.Node, key string, value any) {
 		valueNode = valueNode.Content[0]
 	}
 	root.Content = append(root.Content, keyNode, valueNode)
+	return nil
 }

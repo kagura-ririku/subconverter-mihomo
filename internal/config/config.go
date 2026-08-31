@@ -22,6 +22,7 @@ type Upstream struct {
 	Path            string            `json:"path"`
 	UserAgent       string            `json:"user_agent"`
 	Headers         map[string]string `json:"headers"`
+	AgeSecretKey    string            `json:"age_secret_key"`
 	IncludeRegex    RegexList         `json:"include_regex"`
 	ExcludeRegex    RegexList         `json:"exclude_regex"`
 	LocalPath       string            `json:"-"`
@@ -58,6 +59,7 @@ type Config struct {
 	ListenAddr               string
 	AllowedHosts             []string
 	RequestTimeout           time.Duration
+	UpstreamTimeout          time.Duration
 	ControllerURL            string
 	ControllerStartupTimeout time.Duration
 	MihomoHome               string
@@ -105,17 +107,24 @@ func (c *Config) FindSubscription(uuid string) *Subscription {
 
 func (s *Subscription) ProviderNames() []string {
 	result := make([]string, 0, len(s.Upstreams))
+	seen := make(map[string]struct{}, len(s.Upstreams))
 	for _, upstream := range s.Upstreams {
-		if upstream.ProviderName != "" {
-			result = append(result, upstream.ProviderName)
+		name := strings.TrimSpace(upstream.ProviderName)
+		if name == "" {
+			continue
 		}
+		if _, exists := seen[name]; exists {
+			continue
+		}
+		seen[name] = struct{}{}
+		result = append(result, name)
 	}
 	return result
 }
 
 func (s *Subscription) FindUpstreamByProvider(providerName string) *Upstream {
 	for idx := range s.Upstreams {
-		if s.Upstreams[idx].ProviderName == providerName {
+		if strings.TrimSpace(s.Upstreams[idx].ProviderName) == providerName {
 			return &s.Upstreams[idx]
 		}
 	}
@@ -135,6 +144,7 @@ func Load() (*Config, error) {
 		ListenAddr:               getenvPrefixed("LISTEN_ADDR", ":8080"),
 		AllowedHosts:             splitListEnv("ALLOWED_HOSTS"),
 		RequestTimeout:           mustDurationSeconds("REQUEST_TIMEOUT_SECONDS", 20),
+		UpstreamTimeout:          mustDurationSeconds("UPSTREAM_TIMEOUT_SECONDS", 15),
 		ControllerURL:            strings.TrimRight(getenvPrefixed("CONTROLLER_URL", "http://mihomo:9093"), "/"),
 		ControllerStartupTimeout: mustDurationSeconds("CONTROLLER_STARTUP_TIMEOUT_SECONDS", 90),
 		MihomoHome:               getenvPrefixed("MIHOMO_HOME", "/data/mihomo"),
@@ -251,6 +261,7 @@ func prepareSubscriptions(subscriptions []Subscription, subscriptionsDir string)
 			}
 			upstream.URL = strings.TrimSpace(upstream.URL)
 			upstream.Path = strings.TrimSpace(upstream.Path)
+			upstream.AgeSecretKey = strings.TrimSpace(upstream.AgeSecretKey)
 			switch {
 			case upstream.URL == "" && upstream.Path == "":
 				return nil, fmt.Errorf("subscription %q upstream %q must contain url or path", subscription.Name, upstream.Name)
@@ -309,23 +320,73 @@ func resolveLocalUpstreamPath(subscriptionsDir, path string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve local upstream path %q: %w", path, err)
 	}
-	resolved, err = filepath.EvalSymlinks(resolved)
-	if err != nil {
+
+	canonical, err := filepath.EvalSymlinks(resolved)
+	if err == nil {
+		if !pathWithin(baseDir, canonical) {
+			return "", fmt.Errorf("local upstream path %q must stay inside %s", path, baseDir)
+		}
+		info, statErr := os.Stat(canonical)
+		if statErr != nil {
+			return "", fmt.Errorf("read local upstream path %q: %w", path, statErr)
+		}
+		if !info.Mode().IsRegular() {
+			return "", fmt.Errorf("local upstream path %q is not a regular file", path)
+		}
+		return canonical, nil
+	}
+	if !os.IsNotExist(err) {
 		return "", fmt.Errorf("read local upstream path %q: %w", path, err)
 	}
 
-	relative, err := filepath.Rel(baseDir, resolved)
-	if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+	// A missing file is a request-time upstream failure. Walk existing path
+	// components first so a parent symlink cannot later redirect reads outside
+	// the subscriptions directory.
+	relative, relErr := filepath.Rel(baseDir, resolved)
+	if relErr != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
 		return "", fmt.Errorf("local upstream path %q must stay inside %s", path, baseDir)
 	}
-	info, err := os.Stat(resolved)
-	if err != nil {
-		return "", fmt.Errorf("read local upstream path %q: %w", path, err)
+	parts := strings.Split(relative, string(filepath.Separator))
+	current := baseDir
+	for idx, part := range parts {
+		if part == "" || part == "." {
+			continue
+		}
+		candidate := filepath.Join(current, part)
+		info, lstatErr := os.Lstat(candidate)
+		if lstatErr != nil {
+			if os.IsNotExist(lstatErr) {
+				for _, missingPart := range parts[idx:] {
+					if missingPart != "" && missingPart != "." {
+						current = filepath.Join(current, missingPart)
+					}
+				}
+				return current, nil
+			}
+			return "", fmt.Errorf("read local upstream path %q: %w", path, lstatErr)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			canonical, evalErr := filepath.EvalSymlinks(candidate)
+			if evalErr != nil {
+				if os.IsNotExist(evalErr) {
+					return "", fmt.Errorf("local upstream path %q must stay inside %s", path, baseDir)
+				}
+				return "", fmt.Errorf("read local upstream path %q: %w", path, evalErr)
+			}
+			if !pathWithin(baseDir, canonical) {
+				return "", fmt.Errorf("local upstream path %q must stay inside %s", path, baseDir)
+			}
+			current = canonical
+			continue
+		}
+		current = candidate
 	}
-	if !info.Mode().IsRegular() {
-		return "", fmt.Errorf("local upstream path %q is not a regular file", path)
-	}
-	return resolved, nil
+	return current, nil
+}
+
+func pathWithin(baseDir, candidate string) bool {
+	relative, err := filepath.Rel(baseDir, candidate)
+	return err == nil && relative != ".." && !strings.HasPrefix(relative, ".."+string(filepath.Separator))
 }
 
 func buildProviderName(subscriptionName string, subIdx int, upstreamName string, upstreamIdx int) string {
@@ -450,10 +511,14 @@ func mustDurationSeconds(base string, fallback int) time.Duration {
 		return time.Duration(fallback) * time.Second
 	}
 	seconds, err := strconv.Atoi(value)
-	if err != nil {
+	if err != nil || seconds <= 0 {
 		return time.Duration(fallback) * time.Second
 	}
-	return time.Duration(seconds) * time.Second
+	duration := time.Duration(seconds) * time.Second
+	if duration <= 0 || duration/time.Second != time.Duration(seconds) {
+		return time.Duration(fallback) * time.Second
+	}
+	return duration
 }
 
 func getenvPrefixed(base, fallback string) string {

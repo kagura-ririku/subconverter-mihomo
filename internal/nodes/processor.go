@@ -37,37 +37,7 @@ type renameGroup struct {
 	Indexes  []int
 }
 
-func BuildNodes(providers map[string]model.Provider) ([]model.Node, error) {
-	nodes := make([]model.Node, 0)
-
-	providerNames := make([]string, 0, len(providers))
-	for name := range providers {
-		providerNames = append(providerNames, name)
-	}
-	sort.Strings(providerNames)
-
-	for _, providerName := range providerNames {
-		provider := providers[providerName]
-		for _, proxy := range provider.Proxies {
-			sanitized := sanitizeProxy(proxy)
-			name, _ := sanitized["name"].(string)
-			if name == "" {
-				continue
-			}
-			nodes = append(nodes, model.Node{
-				ProviderName: providerName,
-				OriginalName: name,
-				WorkingName:  name,
-				FinalName:    name,
-				Proxy:        sanitized,
-			})
-		}
-	}
-
-	return nodes, nil
-}
-
-func BuildFromRawProviders(providers map[string][]map[string]any) ([]model.Node, error) {
+func Build(providers map[string][]map[string]any) []model.Node {
 	nodes := make([]model.Node, 0)
 
 	providerNames := make([]string, 0, len(providers))
@@ -93,11 +63,13 @@ func BuildFromRawProviders(providers map[string][]map[string]any) ([]model.Node,
 		}
 	}
 
-	return nodes, nil
+	return nodes
 }
 
-func SelectSubscriptionInfo(providers map[string]model.Provider, preferredOrder []string) *model.SubscriptionInfo {
+func SelectSubscriptionInfo(providers map[string]model.ProviderMetadata, preferredOrder []string) *model.SubscriptionInfo {
+	allowed := make(map[string]struct{}, len(preferredOrder))
 	for _, providerName := range preferredOrder {
+		allowed[providerName] = struct{}{}
 		provider, ok := providers[providerName]
 		if !ok {
 			continue
@@ -110,6 +82,11 @@ func SelectSubscriptionInfo(providers map[string]model.Provider, preferredOrder 
 
 	providerNames := make([]string, 0, len(providers))
 	for providerName := range providers {
+		if len(preferredOrder) > 0 {
+			if _, ok := allowed[providerName]; !ok {
+				continue
+			}
+		}
 		providerNames = append(providerNames, providerName)
 	}
 	sort.Strings(providerNames)

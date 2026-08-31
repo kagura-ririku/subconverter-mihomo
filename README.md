@@ -15,6 +15,7 @@ ghcr.io/kagura-ririku/subconverter-mihomo:latest
 - 使用 `mihomo` 实时拉取和解析上游订阅
 - 支持多个订阅组，每个订阅组使用自己的 UUID 鉴权
 - 每个订阅组可配置多个在线订阅或本地 mihomo 配置
+- 单个上游失败时自动跳过，其他可用上游仍会正常下发
 - 每个订阅组可配置固定远程配置
 - 支持订阅级和上游级节点筛选
 - 自动重命名节点并添加地区旗帜
@@ -26,7 +27,7 @@ ghcr.io/kagura-ririku/subconverter-mihomo:latest
 ## 架构
 
 - `subconverter`：Go 服务，对外提供订阅地址
-- `mihomo`：sidecar，负责拉取和解析上游订阅
+- `mihomo`：sidecar，负责拉取和解析上游订阅；默认固定为 `v1.19.30`
 
 两个容器共享同一个运行时 volume，用来交换 `mihomo` 配置和 provider 缓存。这部分是运行时数据，不是长期业务数据。
 
@@ -117,7 +118,7 @@ https://your-domain/<uuid>/clash
 
 `remote_config` 推荐使用这个规则仓库：
 
-- https://github.com/Aethersailor/Custom_OpenClash_Rules/tree/main
+- `https://raw.githubusercontent.com/Aethersailor/Custom_OpenClash_Rules/refs/heads/main/cfg/Custom_Clash.ini`
 
 上游字段说明：
 
@@ -125,6 +126,7 @@ https://your-domain/<uuid>/clash
 - `path`：本地 mihomo 配置路径，与 `url` 二选一；相对于 `subscriptions.json` 所在目录
 - `user_agent`：请求上游时使用的 UA，留空时默认 `MetaCubeX/mihomo`
 - `headers`：请求上游时附带的请求头，通常留空；只有机场要求额外鉴权头时才需要填写
+- `age_secret_key`：可选的 mihomo `age` 解密私钥；上游返回 age armor 加密内容时填写，公钥可通过 `headers` 传递 `X-Age-Public-Key`
 - `include_regex` / `exclude_regex`：仅对当前上游生效的筛选规则
 
 本地 mihomo 配置示例目录：
@@ -147,6 +149,8 @@ config/
 ```
 
 同一个订阅组可以同时包含本地 mihomo 配置和在线订阅。仓库中的 `Example Subscription A` 展示了这种配置方式。
+
+每次请求会独立更新所有上游。某个上游拉取、解析或缓存读取失败时，只跳过该上游并在服务端记录日志；不会使用它之前留下的旧缓存。只有当前订阅组的所有上游都不可用时，请求才会返回 `502`。
 
 本地文件可以是完整的 mihomo `config.yaml`，但必须包含顶层 `proxies`。转换服务只导入其中的节点；`proxy-groups`、`rules`、DNS 等内容不会合并到转换结果，最终策略仍由订阅组的 `remote_config` 生成。
 
@@ -171,7 +175,8 @@ config/
 如果后面确实需要覆盖默认行为，程序仍然支持这些可选环境变量：
 
 - `SUBCONVERTER_ALLOWED_HOSTS`
-- `SUBCONVERTER_REQUEST_TIMEOUT_SECONDS`
+- `SUBCONVERTER_REQUEST_TIMEOUT_SECONDS`（单次请求总超时，默认 20 秒）
+- `SUBCONVERTER_UPSTREAM_TIMEOUT_SECONDS`（并行刷新单批上游的超时，默认 15 秒；必须小于请求总超时才有额外缓冲）
 - `SUBCONVERTER_CONTROLLER_STARTUP_TIMEOUT_SECONDS`
 - `SUBCONVERTER_SUBSCRIPTIONS_FILE`
 
