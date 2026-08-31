@@ -1,4 +1,4 @@
-name: docker
+name: Build and publish image
 
 on:
   push:
@@ -11,13 +11,21 @@ on:
 
 permissions:
   contents: read
-  packages: write
+
+concurrency:
+  group: container-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  test:
+  image:
+    name: Build linux/amd64 and linux/arm64
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
     steps:
-      - name: Checkout
+      - name: Check out source
         uses: actions/checkout@v7
 
       - name: Set up Go
@@ -26,21 +34,15 @@ jobs:
           go-version-file: go.mod
           cache: true
 
-      - name: Test
-        run: go test ./...
+      - name: Validate source
+        run: |
+          go test ./...
+          go vet ./...
 
-      - name: Vet
-        run: go vet ./...
-
-  docker:
-    needs: test
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Set up QEMU
+      - name: Enable ARM64 container steps
         uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -53,7 +55,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract Docker metadata
+      - name: Generate image metadata
         id: meta
         uses: docker/metadata-action@v6
         with:
@@ -63,7 +65,7 @@ jobs:
             type=ref,event=tag
             type=sha,format=short
 
-      - name: Build and push Docker image
+      - name: Build multi-platform image
         uses: docker/build-push-action@v7
         with:
           context: .
