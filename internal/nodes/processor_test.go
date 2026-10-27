@@ -7,6 +7,60 @@ import (
 	"github.com/kagura-ririku/subconverter-mihomo/internal/model"
 )
 
+func TestBuildSkipsNoticeNodes(t *testing.T) {
+	tests := []struct {
+		name string
+		want int
+	}{
+		{name: "剩余流量： 487.73 GB"},
+		{name: "剩余流量： 505.01 GB"},
+		{name: "📊 剩餘流量: 100 GiB"},
+		{name: "Remaining Traffic: 20 GB"},
+		{name: "Traffic remaining: 512 MB | 到期：2026-12-01"},
+		{name: "剩余流量：无限制"},
+		{name: "📅 套餐到期：2026-12-01"},
+		{name: "流量重置时间：每月1日"},
+		{name: "距离下次重置剩余：20 天"},
+		{name: "🌐 官网：https://example.com"},
+		{name: "备用网址 example.com"},
+		{name: "官方网站"},
+		{name: "客服：@support"},
+		{name: "聯繫客服：@support"},
+		{name: "TG群：https://t.me/example"},
+		{name: "公告：请更新客户端"},
+		{name: "订阅地址：https://example.com/sub"},
+		{name: "请更新订阅获取最新节点"},
+		{name: "套餐已到期，请续费"},
+		{name: "Official Website: https://example.com"},
+		{name: "Customer Service: @support"},
+		{name: "Expire Date: 2026-12-01"},
+		{name: "https://example.com"},
+		{name: "   "},
+		{name: "🇭🇰 香港01|流量优化", want: 1},
+		{name: "🇬🇧英国伦敦01|流媒体|0.1x", want: 1},
+		{name: "Remaining Traffic Relay", want: 1},
+		{name: "香港官网专线", want: 1},
+		{name: "客服专线01", want: 1},
+		{name: "Website Relay 01", want: 1},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, proxyType := range []string{"ss", "vless"} {
+				got := Build(map[string][]map[string]any{
+					"source": {{"name": tt.name, "type": proxyType, "server": "example.com", "port": 443}},
+				})
+				if len(got) != tt.want {
+					t.Fatalf("Build() for %s returned %d nodes, want %d", proxyType, len(got), tt.want)
+				}
+				if tt.want == 1 && got[0].OriginalName != tt.name {
+					t.Fatalf("Build() changed name to %q, want %q", got[0].OriginalName, tt.name)
+				}
+			}
+		})
+	}
+}
+
 func TestMatchKeywordUsesTokenBoundariesForLatinKeywords(t *testing.T) {
 	tests := []struct {
 		name    string

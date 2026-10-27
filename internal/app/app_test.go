@@ -13,7 +13,7 @@ import (
 
 	"github.com/kagura-ririku/subconverter-mihomo/internal/config"
 	"github.com/kagura-ririku/subconverter-mihomo/internal/mihomo"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 func TestHandleSubscriptionSkipsFailedUpstream(t *testing.T) {
@@ -79,22 +79,28 @@ func TestHandleSubscriptionReturnsBadGatewayWhenAllUpstreamsFail(t *testing.T) {
 	}
 }
 
-func TestHandleSubscriptionServesLocalProviderWithoutRemoteUpdate(t *testing.T) {
-	controller := newProviderController(t, map[string]int{})
-	defer controller.Close()
+func TestHandleSubscriptionValidatesLocalProvider(t *testing.T) {
+	for _, valid := range []bool{true, false} {
+		updateStatus, wantStatus := http.StatusNoContent, http.StatusOK
+		if !valid {
+			updateStatus, wantStatus = http.StatusInternalServerError, http.StatusBadGateway
+		}
+		controller := newProviderController(t, map[string]int{"local": updateStatus})
+		t.Cleanup(controller.Close)
 
-	sourcePath := filepath.Join(t.TempDir(), "local.yaml")
-	writeProviderSource(t, sourcePath, "local-node")
-	application := newTestApplication(t, controller.URL, []config.Upstream{
-		{Path: "local.yaml", LocalPath: sourcePath, ProviderName: "local"},
-	})
+		sourcePath := filepath.Join(t.TempDir(), "local.yaml")
+		writeProviderSource(t, sourcePath, "local-node")
+		application := newTestApplication(t, controller.URL, []config.Upstream{
+			{Path: "local.yaml", LocalPath: sourcePath, ProviderName: "local"},
+		})
 
-	request := httptest.NewRequest(http.MethodGet, "/test-uuid/clash", nil)
-	response := httptest.NewRecorder()
-	application.Handler().ServeHTTP(response, request)
+		request := httptest.NewRequest(http.MethodGet, "/test-uuid/clash", nil)
+		response := httptest.NewRecorder()
+		application.Handler().ServeHTTP(response, request)
 
-	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "local-node") {
-		t.Fatalf("status/body = %d/%q, want local provider", response.Code, response.Body.String())
+		if response.Code != wantStatus || strings.Contains(response.Body.String(), "local-node") != valid {
+			t.Fatalf("valid=%v: status/body = %d/%q, want %d", valid, response.Code, response.Body.String(), wantStatus)
+		}
 	}
 }
 
@@ -163,6 +169,22 @@ func TestNewReloadsWrittenRuntimeConfig(t *testing.T) {
 	}
 	if !strings.Contains(reloadedPayload, "proxy-groups:") {
 		t.Fatalf("reload payload = %q, want generated mihomo config", reloadedPayload)
+	}
+}
+
+func TestParseSubscriptionPathRejectsPathNormalization(t *testing.T) {
+	valid := []string{"/test-uuid", "/test-uuid/", "/test-uuid/clash"}
+	for _, path := range valid {
+		if _, _, ok := parseSubscriptionPath(path); !ok {
+			t.Errorf("parseSubscriptionPath(%q) rejected valid path", path)
+		}
+	}
+
+	invalid := []string{"/test-uuid/../other", "/test-uuid/./clash", "/test-uuid//clash", "/test-uuid/clash/extra", `/test-uuid\\clash`}
+	for _, path := range invalid {
+		if _, _, ok := parseSubscriptionPath(path); ok {
+			t.Errorf("parseSubscriptionPath(%q) accepted malformed path", path)
+		}
 	}
 }
 

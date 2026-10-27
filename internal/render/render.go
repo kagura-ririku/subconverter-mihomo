@@ -6,7 +6,7 @@ import (
 
 	"github.com/kagura-ririku/subconverter-mihomo/internal/model"
 	"github.com/kagura-ririku/subconverter-mihomo/internal/remoteconfig"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 func Clash(compiled *remoteconfig.Compiled, allNodes []model.Node) ([]byte, error) {

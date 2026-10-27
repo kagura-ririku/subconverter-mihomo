@@ -1,12 +1,36 @@
 package config
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
+
+func TestRegexListPreservesAlternation(t *testing.T) {
+	const pattern = `(?i)^(hk|us)\|premium$`
+	for _, input := range []any{pattern, []string{pattern}} {
+		data, err := json.Marshal(input)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var list RegexList
+		if err := json.Unmarshal(data, &list); err != nil {
+			t.Fatal(err)
+		}
+		patterns, err := compilePatterns(list)
+		if err != nil || len(patterns) != 1 {
+			t.Fatalf("compilePatterns(%s) = %v, %v", data, patterns, err)
+		}
+		for name, want := range map[string]bool{"HK|premium": true, "us|premium": true, "JP|premium": false, "HK|basic": false} {
+			if got := patterns[0].MatchString(name); got != want {
+				t.Errorf("pattern from %s matched %q = %v, want %v", data, name, got, want)
+			}
+		}
+	}
+}
 
 func TestPrepareSubscriptionsSupportsLocalYAML(t *testing.T) {
 	configDir := t.TempDir()

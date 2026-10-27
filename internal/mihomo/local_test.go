@@ -8,7 +8,7 @@ import (
 
 	"github.com/kagura-ririku/subconverter-mihomo/internal/config"
 	mihomoage "github.com/metacubex/mihomo/component/age"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 func TestWriteRuntimeConfigSupportsLocalProvider(t *testing.T) {

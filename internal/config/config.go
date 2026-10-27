@@ -89,7 +89,7 @@ func (r *RegexList) UnmarshalJSON(data []byte) error {
 
 	var single string
 	if err := json.Unmarshal(trimmed, &single); err == nil {
-		*r = RegexList(splitRegexText(single))
+		*r = RegexList(normalizeList([]string{single}))
 		return nil
 	}
 
@@ -417,24 +417,6 @@ func compilePatterns(values []string) ([]*regexp.Regexp, error) {
 		result = append(result, re)
 	}
 	return result, nil
-}
-
-func splitRegexText(value string) []string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return nil
-	}
-	parts := strings.FieldsFunc(value, func(r rune) bool {
-		return r == '\n' || r == '|'
-	})
-	result := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part != "" {
-			result = append(result, part)
-		}
-	}
-	return result
 }
 
 func splitListEnv(base string) []string {

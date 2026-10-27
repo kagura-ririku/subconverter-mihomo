@@ -15,13 +15,14 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
-	"github.com/dlclark/regexp2"
+	"github.com/dlclark/regexp2/v2"
 	"github.com/kagura-ririku/subconverter-mihomo/internal/config"
 	"github.com/kagura-ririku/subconverter-mihomo/internal/model"
 	"github.com/kagura-ririku/subconverter-mihomo/internal/nodes"
+	"go.yaml.in/yaml/v3"
 	"gopkg.in/ini.v1"
-	"gopkg.in/yaml.v3"
 )
 
 type ExternalConfig struct {
@@ -607,10 +608,11 @@ func compileGroupMatcher(spec string) (func(string) bool, error) {
 		return re.MatchString, nil
 	}
 
-	re2, err := regexp2.Compile(spec, regexp2.None)
+	re2, err := regexp2.Compile(spec)
 	if err != nil {
 		return nil, err
 	}
+	re2.MatchTimeout = 100 * time.Millisecond
 	return func(value string) bool {
 		matched, err := re2.MatchString(value)
 		return err == nil && matched

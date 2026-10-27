@@ -37,6 +37,36 @@ type renameGroup struct {
 	Indexes  []int
 }
 
+var noticePatterns = []*regexp.Regexp{
+	regexp.MustCompile(`^(?:剩[余餘]流量|已用流量|[总總]流量|流量[余餘][额額]|` +
+		`(?:套餐|[订訂][阅閱]|[账帳][号號])?(?:到期(?:时间|時間|日期)?|有效期)|` +
+		`(?:距[离離])?(?:下次)?(?:流量)?重置(?:时间|時間|日期|剩[余餘]|[还還]有)?|剩[余餘]天[数數]|` +
+		`(?:官方|[备備]用)?(?:官[网網]|[网網]站|[网網]址|客服|公告|通知)|` +
+		`(?:官方)?(?:[联聯][系繫]方式|[联聯][系繫]客服|[订訂][阅閱]地址|[订訂][阅閱]更新|使用[说說]明|` +
+		`[电電][报報]群|[电電][报報][频頻]道|用[户戶]群|TG群|TG[频頻]道))` +
+		`(?:$|[^\p{L}\p{N}])`),
+	regexp.MustCompile(`(?i)^(?:remaining\s+traffic|traffic\s+remaining)\s*[:：]?\s*\d+(?:\.\d+)?\s*(?:[kmgtpe]i?)?b\b`),
+	regexp.MustCompile(`(?i)^(?:remaining\s+traffic|traffic\s+remaining|used\s+traffic|total\s+traffic|` +
+		`expire(?:s|d|\s+date|\s+time)?|expiration(?:\s+date)?|expiry(?:\s+date)?|reset(?:\s+date)?|` +
+		`(?:official\s+)?(?:website|support|customer\s+service|telegram(?:\s+(?:group|channel))?)|` +
+		`announcement|notice|subscription\s+(?:url|update))\s*(?:$|[:：=|｜]|https?://|www\.|t\.me/)`),
+	regexp.MustCompile(`^(?:(?:请|請)(?:及时|及時|定期|手动|手動|重新)?(?:更新|刷新|导入|導入)[订訂][阅閱]|` +
+		`(?:套餐|[订訂][阅閱]|[账帳][号號])已(?:到期|[过過]期)|流量已用[尽盡])`),
+	regexp.MustCompile(`(?i)^(?:https?://|www\.|t\.me/)\S+$`),
+}
+
+func isNoticeName(name string) bool {
+	name = strings.TrimLeftFunc(name, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
+	})
+	for _, pattern := range noticePatterns {
+		if pattern.MatchString(name) {
+			return true
+		}
+	}
+	return false
+}
+
 func Build(providers map[string][]map[string]any) []model.Node {
 	nodes := make([]model.Node, 0)
 
@@ -50,7 +80,7 @@ func Build(providers map[string][]map[string]any) []model.Node {
 		for _, proxy := range providers[providerName] {
 			sanitized := sanitizeProxy(proxy)
 			name, _ := sanitized["name"].(string)
-			if name == "" {
+			if strings.TrimSpace(name) == "" || isNoticeName(name) {
 				continue
 			}
 			nodes = append(nodes, model.Node{

@@ -18,6 +18,7 @@ ghcr.io/kagura-ririku/subconverter-mihomo:latest
 - 单个上游失败时自动跳过，其他可用上游仍会正常下发
 - 每个订阅组可配置固定远程配置
 - 支持订阅级和上游级节点筛选
+- 自动跳过流量、到期/重置时间、官网、客服、群组、公告、订阅更新及纯链接等常见提示节点，支持常见简繁体及英文写法
 - 自动重命名节点并添加地区旗帜
 - 可按固定顺序排序节点：`港台新日韩美`，其它已识别地区和未知地区排在后面
 - 保留上游返回的 `subscription-userinfo`
@@ -27,7 +28,7 @@ ghcr.io/kagura-ririku/subconverter-mihomo:latest
 ## 架构
 
 - `subconverter`：Go 服务，对外提供订阅地址
-- `mihomo`：sidecar，负责拉取和解析上游订阅；默认固定为 `v1.19.30`
+- `mihomo`：sidecar，负责拉取和解析上游订阅；默认固定为 `v1.19.33`
 
 两个容器共享同一个运行时 volume，用来交换 `mihomo` 配置和 provider 缓存。这部分是运行时数据，不是长期业务数据。
 

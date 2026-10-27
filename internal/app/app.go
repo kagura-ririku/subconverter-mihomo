@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -308,14 +307,7 @@ func (a *Application) refreshProviders(ctx context.Context, subscription *config
 	a.logProviderFailures(subscription.Name, "load local provider", providerNames, localFailures)
 	providerNames = providerNamesWithoutFailures(providerNames, localFailures)
 
-	remoteProviderNames := make([]string, 0, len(providerNames))
-	for _, providerName := range providerNames {
-		upstream := subscription.FindUpstreamByProvider(providerName)
-		if upstream == nil || !upstream.IsLocal() {
-			remoteProviderNames = append(remoteProviderNames, providerName)
-		}
-	}
-	updateFailures := a.updateProvidersConcurrently(ctx, remoteProviderNames)
+	updateFailures := a.updateProvidersConcurrently(ctx, providerNames)
 	a.logProviderFailures(subscription.Name, "update provider", subscription.ProviderNames(), updateFailures)
 	providerNames = providerNamesWithoutFailures(providerNames, updateFailures)
 	if err := ctx.Err(); err != nil {
@@ -369,12 +361,17 @@ func contentDisposition(filename string) string {
 }
 
 func parseSubscriptionPath(requestPath string) (uuid string, format string, ok bool) {
-	cleaned := strings.Trim(path.Clean(requestPath), "/")
-	if cleaned == "" || cleaned == "." {
+	cleaned := strings.Trim(requestPath, "/")
+	if cleaned == "" {
 		return "", "", false
 	}
 
 	parts := strings.Split(cleaned, "/")
+	for _, part := range parts {
+		if part == "" || part == "." || part == ".." || strings.ContainsRune(part, '\\') {
+			return "", "", false
+		}
+	}
 	switch len(parts) {
 	case 1:
 		return parts[0], "clash", true

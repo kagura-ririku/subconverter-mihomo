@@ -11,7 +11,7 @@ import (
 	"github.com/kagura-ririku/subconverter-mihomo/internal/config"
 	"github.com/metacubex/mihomo/common/convert"
 	mihomoage "github.com/metacubex/mihomo/component/age"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 type rawProxySchema struct {

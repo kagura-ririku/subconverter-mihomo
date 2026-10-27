@@ -118,6 +118,20 @@ func TestCompileProxyGroupsKeepsCurrentBuiltInProxies(t *testing.T) {
 	}
 }
 
+func TestCompileProxyGroupsSupportsLookaround(t *testing.T) {
+	groups := compileProxyGroups([]string{"HK`select`(?i)^(?=.*Hong Kong)(?!.*expired)"}, []model.Node{
+		{OriginalName: "Hong Kong 01", FinalName: "HK 01"},
+		{OriginalName: "Hong Kong expired", FinalName: "HK 02"},
+		{OriginalName: "USA 01", FinalName: "USA 01"},
+	})
+	if len(groups) != 1 {
+		t.Fatalf("compileProxyGroups() = %#v, want one group", groups)
+	}
+	if got := groups[0]["proxies"].([]string); len(got) != 1 || got[0] != "HK 01" {
+		t.Fatalf("group proxies = %v, want [HK 01]", got)
+	}
+}
+
 func TestInferRuleFormatHandlesMRSURLs(t *testing.T) {
 	tests := []struct {
 		name   string
