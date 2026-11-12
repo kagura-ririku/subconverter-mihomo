@@ -367,65 +367,27 @@ func extractRegionInfo(name string, cfg *config.Config) regionInfo {
 	}
 
 	bestCountry := ""
-	bestKeywordLength := 0
-	bestOrder := 0
-	for _, candidate := range leadingCountryCandidates(name) {
-		for order, country := range orderedRegionCountries(cfg) {
-			matchLength := bestLeadingKeywordLength(candidate, cfg.RegionKeywords[country])
-			if matchLength == 0 {
+	bestKeywordLength := -1
+	for _, country := range orderedRegionCountries(cfg) {
+		for _, keyword := range cfg.RegionKeywords[country] {
+			if !matchKeyword(name, keyword) {
 				continue
 			}
-			if matchLength > bestKeywordLength || (matchLength == bestKeywordLength && (bestCountry == "" || order < bestOrder)) {
+			length := len([]rune(keyword))
+			// Prefer explicit region names to flags, which upstreams may reuse.
+			if hasRegionalIndicator(keyword) {
+				length = 0
+			}
+			if length > bestKeywordLength {
 				bestCountry = country
-				bestKeywordLength = matchLength
-				bestOrder = order
+				bestKeywordLength = length
 			}
 		}
-		if bestCountry != "" {
-			return regionInfo{Country: bestCountry}
-		}
 	}
-
+	if bestCountry != "" {
+		return regionInfo{Country: bestCountry}
+	}
 	return regionInfo{Country: "Unknown"}
-}
-
-func leadingCountryCandidates(name string) []string {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return nil
-	}
-
-	candidates := []string{}
-	stripped := stripLeadingRegionalIndicators(name)
-	if stripped != "" && stripped != name {
-		candidates = append(candidates, stripped)
-	}
-	candidates = append(candidates, name)
-	return candidates
-}
-
-func stripLeadingRegionalIndicators(name string) string {
-	runes := []rune(strings.TrimSpace(name))
-	idx := 0
-	for idx < len(runes) && isRegionalIndicatorRune(runes[idx]) {
-		idx++
-	}
-	if idx == 0 {
-		return string(runes)
-	}
-	return strings.TrimLeftFunc(string(runes[idx:]), isLeadingRegionSeparator)
-}
-
-func isLeadingRegionSeparator(r rune) bool {
-	if unicode.IsSpace(r) {
-		return true
-	}
-	switch r {
-	case '-', '_', '|', '/', '\\', ':', '.', ',', '+', '~', '#', '@', '[', ']', '(', ')':
-		return true
-	default:
-		return false
-	}
 }
 
 func orderedRegionCountries(cfg *config.Config) []string {
@@ -464,20 +426,6 @@ func orderedRegionCountries(cfg *config.Config) []string {
 	return append(result, rest...)
 }
 
-func bestLeadingKeywordLength(name string, keywords []string) int {
-	best := 0
-	for _, keyword := range keywords {
-		if !matchLeadingKeyword(name, keyword) {
-			continue
-		}
-		length := len([]rune(strings.TrimSpace(keyword)))
-		if length > best {
-			best = length
-		}
-	}
-	return best
-}
-
 func matchesKeywordList(name string, keywords []string) bool {
 	for _, keyword := range keywords {
 		if matchKeyword(name, keyword) {
@@ -488,29 +436,14 @@ func matchesKeywordList(name string, keywords []string) bool {
 }
 
 func matchKeyword(name, keyword string) bool {
+	keyword = strings.TrimSpace(keyword)
+	if keyword == "" {
+		return false
+	}
 	if hasCJK(keyword) || hasRegionalIndicator(keyword) {
 		return strings.Contains(name, keyword)
 	}
 	return containsToken(strings.ToLower(name), strings.ToLower(keyword))
-}
-
-func matchLeadingKeyword(name, keyword string) bool {
-	name = strings.TrimSpace(name)
-	keyword = strings.TrimSpace(keyword)
-	if name == "" || keyword == "" {
-		return false
-	}
-
-	if hasCJK(keyword) || hasRegionalIndicator(keyword) {
-		return strings.HasPrefix(name, keyword)
-	}
-
-	name = strings.ToLower(name)
-	keyword = strings.ToLower(keyword)
-	if !strings.HasPrefix(name, keyword) {
-		return false
-	}
-	return isLeadingKeywordBoundary(name, len(keyword))
 }
 
 func containsToken(name, keyword string) bool {
@@ -534,17 +467,6 @@ func isKeywordBoundary(value string, idx int) bool {
 		return true
 	}
 	ch := value[idx]
-	return !((ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9'))
-}
-
-func isLeadingKeywordBoundary(value string, idx int) bool {
-	if idx < 0 || idx >= len(value) {
-		return true
-	}
-	ch := value[idx]
-	if ch >= '0' && ch <= '9' {
-		return true
-	}
 	return !(ch >= 'a' && ch <= 'z')
 }
 

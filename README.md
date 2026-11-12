@@ -112,7 +112,7 @@ https://your-domain/<uuid>/clash
 - `uuid`：客户端访问该订阅时使用的 UUID
 - `name`：返回给客户端的订阅文件名
 - `remote_config`：固定远程配置 URL
-- `enable_node_rename`：是否启用自动节点重命名，默认开启
+- `enable_node_rename`：是否启用自动节点重命名，默认开启。地区可出现在名称任意位置（如 `[高级] 🇭🇰 香港 01`）；英文缩写按字母边界匹配，优先识别完整地区名，再使用旗帜，无法识别时保留原名
 - `sort_nodes_by_region`：是否按固定地区顺序排序节点
 - `include_regex` / `exclude_regex`：订阅级筛选规则
 - `upstreams`：上游订阅列表

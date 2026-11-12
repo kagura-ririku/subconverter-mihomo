@@ -17,7 +17,7 @@ func TestDefaultRegionsIncludeCommonExtraCountries(t *testing.T) {
 	flags := defaultRegionFlags()
 	keywords := defaultRegionKeywords()
 
-	for _, country := range []string{"AUS", "NZL", "NLD", "FRA", "UKR"} {
+	for _, country := range []string{"AUS", "NZL", "NLD", "FRA", "UKR", "MEX"} {
 		if flags[country] == "" {
 			t.Fatalf("defaultRegionFlags()[%q] is empty", country)
 		}

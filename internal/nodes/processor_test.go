@@ -71,6 +71,8 @@ func TestMatchKeywordUsesTokenBoundariesForLatinKeywords(t *testing.T) {
 		{name: "NG-01 Lagos", keyword: "NG", want: true},
 		{name: "business-us-node", keyword: "US", want: true},
 		{name: "business node", keyword: "US", want: false},
+		{name: "[高级] TW01", keyword: "TW", want: true},
+		{name: "[基础] TWICE", keyword: "TW", want: false},
 		{name: "USA Los Angeles 01", keyword: "Los Angeles", want: true},
 	}
 
@@ -100,13 +102,13 @@ func TestExtractRegionInfoPrefersCityBeforeCountry(t *testing.T) {
 	}
 }
 
-func TestExtractRegionInfoMatchesCountryOnlyFromLeadingRegionPart(t *testing.T) {
+func TestExtractRegionInfoMatchesCountryAnywhere(t *testing.T) {
 	cfg := &config.Config{
 		CitylessCountries: map[string]struct{}{},
 		RegionKeywords: map[string][]string{
 			"NGA": {"NG", "NGA", "Nigeria"},
-			"TWN": {"TW", "TWN", "Taiwan"},
-			"USA": {"US", "USA", "America"},
+			"TWN": {"🇹🇼", "台湾", "TW", "TWN", "Taiwan"},
+			"USA": {"🇺🇸", "美国", "US", "USA", "America"},
 		},
 		CityKeywords: []config.CityKeyword{},
 	}
@@ -121,7 +123,11 @@ func TestExtractRegionInfoMatchesCountryOnlyFromLeadingRegionPart(t *testing.T) 
 		{name: "🇨🇳-TW01 0.2x", want: "TWN"},
 		{name: "TWICE node", want: "Unknown"},
 		{name: "USA Los Angeles 01", want: "USA"},
-		{name: "Relay NG 01", want: "Unknown"},
+		{name: "Relay NG 01", want: "NGA"},
+		{name: "[高级] 🇨🇳 台湾 01", want: "TWN"},
+		{name: "[基础] 🇺🇸 01", want: "USA"},
+		{name: "🇹🇼 美国 01", want: "USA"},
+		{name: "business node", want: "Unknown"},
 		{name: "Los Angeles 01", want: "Unknown"},
 	}
 
@@ -132,7 +138,7 @@ func TestExtractRegionInfoMatchesCountryOnlyFromLeadingRegionPart(t *testing.T) 
 	}
 }
 
-func TestExtractRegionInfoPrefersLongestLeadingCountryKeyword(t *testing.T) {
+func TestExtractRegionInfoPrefersLongestCountryKeyword(t *testing.T) {
 	cfg := &config.Config{
 		RegionOrder:       []string{"SGP", "IND", "IDN", "NZL"},
 		CitylessCountries: map[string]struct{}{},
@@ -152,6 +158,7 @@ func TestExtractRegionInfoPrefersLongestLeadingCountryKeyword(t *testing.T) {
 		{name: "印度尼西亚 01", want: "IDN"},
 		{name: "印度 01", want: "IND"},
 		{name: "新西兰 01", want: "NZL"},
+		{name: "[高级] 印度尼西亚 01", want: "IDN"},
 	}
 
 	for _, tt := range tests {
@@ -181,12 +188,13 @@ func TestApplyUsesDefaultPrimaryRegionSortBeforeExtraRegions(t *testing.T) {
 	nodes := []model.Node{
 		testNode(providerName, "AU01 Sydney"),
 		testNode(providerName, "US01"),
-		testNode(providerName, "HK01"),
+		testNode(providerName, "[高级] 🇭🇰 香港 01"),
 		testNode(providerName, "mystery"),
 		testNode(providerName, "KR01"),
-		testNode(providerName, "🇨🇳 TW01 0.2x"),
+		testNode(providerName, "[高级] 🇨🇳 台湾 01"),
+		testNode(providerName, "[高级] 🇲🇽 墨西哥 01"),
 		testNode(providerName, "NL01 Amsterdam"),
-		testNode(providerName, "JP01"),
+		testNode(providerName, "[基础] 🇯🇵 日本 01"),
 		testNode(providerName, "SG01"),
 	}
 
@@ -207,6 +215,18 @@ func TestApplyUsesDefaultPrimaryRegionSortBeforeExtraRegions(t *testing.T) {
 		if got[idx].FinalName != want {
 			t.Fatalf("Apply()[%d].FinalName = %q, want %q", idx, got[idx].FinalName, want)
 		}
+	}
+	foundMexico := false
+	for _, node := range got {
+		if node.Proxy["name"] != node.FinalName {
+			t.Fatalf("proxy name = %v, want %q", node.Proxy["name"], node.FinalName)
+		}
+		if node.FinalName == "🇲🇽 MEX 01" {
+			foundMexico = true
+		}
+	}
+	if !foundMexico {
+		t.Fatal("Mexican node was not renamed")
 	}
 	if got[len(got)-1].FinalName != "mystery" {
 		t.Fatalf("last node FinalName = %q, want unknown region to stay last", got[len(got)-1].FinalName)
